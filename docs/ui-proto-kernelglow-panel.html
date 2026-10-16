@@ -1,0 +1,456 @@
+<div id="kernelglow-root" class="kg-app" aria-label="KernelGlow 编辑器工具窗口原型（WinUI 3 风格 · 单页精简版）">
+  <div class="kg-titlebar">
+    <div class="kg-titlebar-left">
+      <span class="kg-appicon"><i data-lucide="sparkles" aria-hidden="true"></i></span>
+      <span class="kg-apptitle">KernelGlow</span>
+      <span class="kg-appchip">UE 5.7 · 卷积辉光</span>
+    </div>
+    <div class="kg-titlebar-right" aria-hidden="true">
+      <button class="kg-caption" type="button" tabindex="-1"><i data-lucide="minus"></i></button>
+      <button class="kg-caption" type="button" tabindex="-1"><i data-lucide="square"></i></button>
+      <button class="kg-caption kg-caption-close" type="button" tabindex="-1"><i data-lucide="x"></i></button>
+    </div>
+  </div>
+
+  <main class="kg-content">
+
+    <div class="kg-infobar" role="status">
+      <i data-lucide="circle-check-big" aria-hidden="true"></i>
+      <span>独立于引擎 Bloom：关闭引擎 Bloom（含卷积）后辉光完整保留；设置已持久化，重启 / 切关卡 / PIE 无需再开。</span>
+    </div>
+
+    <div class="kg-card">
+      <div class="kg-card-head">
+        <i data-lucide="sparkles" aria-hidden="true"></i>
+        <div class="kg-card-title"><b>启用 KernelGlow</b><span>默认开启 · 设置存入项目配置，跨会话保持</span></div>
+        <button class="kg-switch is-on" type="button" role="switch" aria-checked="true" aria-label="启用 KernelGlow"><span class="kg-knob"></span></button>
+      </div>
+      <div class="kg-row">
+        <div class="kg-row-label"><b>总强度</b><span>全局倍率</span></div>
+        <input class="kg-slider" type="range" min="0" max="5" step="0.05" value="1.2" aria-label="总强度">
+        <output class="kg-value">1.20</output>
+      </div>
+      <div class="kg-row">
+        <div class="kg-row-label"><b>亮度阈值</b><span>低于此亮度的来源像素被剔除</span></div>
+        <input class="kg-slider" type="range" min="0" max="4" step="0.05" value="1" aria-label="亮度阈值">
+        <output class="kg-value">1.00</output>
+      </div>
+      <div class="kg-kernelrow">
+        <div class="kg-kernelthumb"><i data-lucide="aperture" aria-hidden="true"></i><span>内置圆盘</span></div>
+        <div class="kg-kernelmeta">
+          <span>Kernel 贴图 · 当前为<b>程序化回退</b></span>
+          <div class="kg-btnrow">
+            <button class="kg-btn kg-btn-primary" type="button">选择贴图…</button>
+            <div class="kg-selector kg-selector-sm" aria-label="程序化形状">
+              <button type="button" class="is-active" aria-pressed="true">圆盘</button>
+              <button type="button" aria-pressed="false">六边形</button>
+              <button type="button" aria-pressed="false">星芒</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kg-card kg-expander">
+      <button class="kg-card-head kg-expander-toggle" type="button" aria-expanded="false" aria-label="光晕形状">
+        <i data-lucide="layers" aria-hidden="true"></i>
+        <div class="kg-card-title"><b>光晕形状</b><span>三层尺度 + 核心回填</span></div>
+        <span class="kg-summary">3 层 · 回填开</span>
+        <i data-lucide="chevron-down" class="kg-chevron" aria-hidden="true"></i>
+      </button>
+      <div class="kg-expander-body" hidden>
+        <div class="kg-subhead">尺度 1 · 近距辉光</div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>半径</b><span>屏幕占比</span></div>
+          <input class="kg-slider" type="range" min="0.01" max="0.5" step="0.01" value="0.06" aria-label="尺度1半径">
+          <output class="kg-value">0.06</output>
+          <input class="kg-color" type="color" value="#9fd8ff" aria-label="尺度1染色">
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>强度</b></div>
+          <input class="kg-slider" type="range" min="0" max="3" step="0.05" value="0.8" aria-label="尺度1强度">
+          <output class="kg-value">0.80</output>
+        </div>
+        <div class="kg-subhead">尺度 2 · 中距光晕</div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>半径</b><span>屏幕占比</span></div>
+          <input class="kg-slider" type="range" min="0.01" max="0.5" step="0.01" value="0.16" aria-label="尺度2半径">
+          <output class="kg-value">0.16</output>
+          <input class="kg-color" type="color" value="#6fb4ff" aria-label="尺度2染色">
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>强度</b></div>
+          <input class="kg-slider" type="range" min="0" max="3" step="0.05" value="0.35" aria-label="尺度2强度">
+          <output class="kg-value">0.35</output>
+        </div>
+        <div class="kg-subhead">尺度 3 · Wide Halo</div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>半径</b><span>屏幕占比</span></div>
+          <input class="kg-slider" type="range" min="0.05" max="1" step="0.01" value="0.42" aria-label="尺度3半径">
+          <output class="kg-value">0.42</output>
+          <input class="kg-color" type="color" value="#4a7cff" aria-label="尺度3染色">
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>强度</b><span>低能量，只留氛围</span></div>
+          <input class="kg-slider" type="range" min="0" max="1" step="0.01" value="0.08" aria-label="尺度3强度">
+          <output class="kg-value">0.08</output>
+        </div>
+        <div class="kg-subhead">核心回填 · 鸣潮式清晰核心</div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>半径 / 强度</b><span>像素 · 全分辨率锐层</span></div>
+          <input class="kg-slider" type="range" min="0" max="16" step="0.5" value="3" aria-label="核心半径">
+          <output class="kg-value">3.0</output>
+          <input class="kg-slider" type="range" min="0" max="2" step="0.05" value="0.6" aria-label="核心强度">
+          <output class="kg-value">0.60</output>
+        </div>
+      </div>
+    </div>
+
+    <div class="kg-card kg-expander">
+      <button class="kg-card-head kg-expander-toggle" type="button" aria-expanded="false" aria-label="来源">
+        <i data-lucide="scan-line" aria-hidden="true"></i>
+        <div class="kg-card-title"><b>来源</b><span>只有标记的高光参与卷积</span></div>
+        <span class="kg-summary">Stencil 3 · RT 1</span>
+        <i data-lucide="chevron-down" class="kg-chevron" aria-hidden="true"></i>
+      </button>
+      <div class="kg-expander-body" hidden>
+        <div class="kg-subhead">Custom Stencil 白名单</div>
+        <div class="kg-chiprow">
+          <span class="kg-chip">1 · 角色<small>×</small></span>
+          <span class="kg-chip">2 · 武器<small>×</small></span>
+          <span class="kg-chip">5 · 特效<small>×</small></span>
+          <button class="kg-chip kg-chip-add" type="button"><i data-lucide="plus" aria-hidden="true"></i>添加</button>
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>RT_Slot_A</b><span>1920×1080 · RGBA16f</span></div>
+          <button class="kg-switch is-on" type="button" role="switch" aria-checked="true" aria-label="启用 RT Slot A"><span class="kg-knob"></span></button>
+          <button class="kg-btn" type="button">更换</button>
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>全屏软阈值亮源</b><span>引擎式全局溢出，默认关</span></div>
+          <button class="kg-switch" type="button" role="switch" aria-checked="false" aria-label="启用全屏亮源"><span class="kg-knob"></span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kg-card kg-expander">
+      <button class="kg-card-head kg-expander-toggle" type="button" aria-expanded="false" aria-label="高级">
+        <i data-lucide="settings-2" aria-hidden="true"></i>
+        <div class="kg-card-title"><b>高级</b><span>合成 · 调试 · 性能</span></div>
+        <span class="kg-summary">HDR · 8×8 · 高</span>
+        <i data-lucide="chevron-down" class="kg-chevron" aria-hidden="true"></i>
+      </button>
+      <div class="kg-expander-body" hidden>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>合成时机</b><span>HDR 为 Tonemap 前</span></div>
+          <select class="kg-select" aria-label="合成时机">
+            <option>HDR · Tonemap 前（推荐）</option>
+            <option>Tonemap 后</option>
+          </select>
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>调试视图</b><span>验收与排错</span></div>
+          <div class="kg-selector kg-selector-sm" aria-label="调试视图">
+            <button type="button" class="is-active" aria-pressed="true">关</button>
+            <button type="button" aria-pressed="false">遮罩</button>
+            <button type="button" aria-pressed="false">隔离</button>
+            <button type="button" aria-pressed="false">对比</button>
+          </div>
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>质量档</b><span>金字塔级数与采样预算</span></div>
+          <div class="kg-selector kg-selector-sm" aria-label="质量档">
+            <button type="button" aria-pressed="false">低</button>
+            <button type="button" class="is-active" aria-pressed="true">高</button>
+            <button type="button" aria-pressed="false">电影级</button>
+          </div>
+        </div>
+        <div class="kg-row">
+          <div class="kg-row-label"><b>Tap 预算 / Fast 模式</b><span>成本与 kernel 尺寸无关</span></div>
+          <div class="kg-selector kg-selector-sm" aria-label="Tap 预算">
+            <button type="button" aria-pressed="false">4×4</button>
+            <button type="button" class="is-active" aria-pressed="true">8×8</button>
+            <button type="button" aria-pressed="false">16×16</button>
+          </div>
+          <button class="kg-switch" type="button" role="switch" aria-checked="false" aria-label="Fast 模式"><span class="kg-knob"></span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kg-footer">v0.1.0 · GPU 1.18 ms @ 2560×1440 · RTX 4060 参考</div>
+  </main>
+</div>
+
+<style>
+  #kernelglow-root {
+    color-scheme: light dark;
+    --kg-accent: #0fa7e6;
+    --kg-radius-card: 8px;
+    --kg-bg: light-dark(#f3f3f3, #202020);
+    --kg-layer: light-dark(#ffffffd9, rgba(43, 43, 43, 0.85));
+    --kg-layer-hover: light-dark(#ffffff, rgba(48, 48, 48, 0.9));
+    --kg-control: light-dark(#ffffff, rgba(255, 255, 255, 0.06));
+    --kg-control-hover: light-dark(#f9f9f9, rgba(255, 255, 255, 0.09));
+    --kg-stroke: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.08));
+    --kg-divider: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.06));
+    --kg-text: light-dark(#1a1a1a, #ffffff);
+    --kg-text-2: light-dark(#5d5d5d, rgba(255, 255, 255, 0.78));
+    --kg-text-3: light-dark(#8a8a8a, rgba(255, 255, 255, 0.55));
+    --kg-track: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.22));
+    --kg-shadow: 0 16px 48px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.16);
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    color: var(--kg-text);
+  }
+
+  .kg-app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 320px;
+    border-radius: 10px;
+    border: 1px solid var(--kg-stroke);
+    background: var(--kg-bg);
+    box-shadow: var(--kg-shadow);
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .kg-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 8px 10px 16px;
+    background: var(--kg-bg);
+    border-bottom: 1px solid var(--kg-divider);
+  }
+  .kg-titlebar-left { display: flex; align-items: center; gap: 10px; }
+  .kg-appicon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--kg-accent); color: #fff;
+  }
+  .kg-appicon svg { width: 14px; height: 14px; }
+  .kg-apptitle { font-size: 13px; font-weight: 500; }
+  .kg-appchip {
+    font-size: 11px; color: var(--kg-text-2);
+    border: 1px solid var(--kg-stroke); border-radius: 999px;
+    padding: 1px 8px; background: var(--kg-control);
+  }
+  .kg-titlebar-right { display: flex; gap: 2px; }
+  .kg-caption {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 28px; border: 0; border-radius: 4px;
+    background: transparent; color: var(--kg-text-2);
+  }
+  .kg-caption svg { width: 12px; height: 12px; }
+  .kg-caption:hover { background: var(--kg-control-hover); color: var(--kg-text); }
+  .kg-caption-close:hover { background: #c42b1c; color: #fff; }
+
+  .kg-content { width: 640px; max-width: 100%; margin: 0 auto; padding: 20px 24px 18px; }
+
+  .kg-infobar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; margin-bottom: 12px;
+    border-radius: var(--kg-radius-card);
+    background: color-mix(in srgb, var(--kg-accent) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--kg-accent) 20%, transparent);
+    font-size: 12.5px; color: var(--kg-text);
+  }
+  .kg-infobar svg { width: 16px; height: 16px; color: var(--kg-accent); flex: 0 0 auto; }
+
+  .kg-card {
+    background: var(--kg-layer);
+    border: 1px solid var(--kg-stroke);
+    border-radius: var(--kg-radius-card);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .kg-card-head {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 13px 16px;
+    border: 0; background: transparent; color: inherit; font: inherit; text-align: left;
+  }
+  .kg-card-head > svg:first-child { width: 17px; height: 17px; color: var(--kg-text-2); flex: 0 0 auto; }
+  .kg-card-title { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+  .kg-card-title b { font-weight: 500; }
+  .kg-card-title span { font-size: 11.5px; color: var(--kg-text-2); }
+  .kg-summary { flex: 0 0 auto; font-size: 11.5px; color: var(--kg-text-3); }
+
+  .kg-expander-toggle:hover { background: var(--kg-layer-hover); }
+  .kg-chevron { width: 15px; height: 15px; color: var(--kg-text-2); transition: transform 0.15s ease; }
+  .kg-expander-toggle[aria-expanded="true"] .kg-chevron { transform: rotate(180deg); }
+  .kg-expander-body { padding: 2px 16px 14px; border-top: 1px solid var(--kg-divider); }
+  .kg-subhead { font-size: 11.5px; color: var(--kg-text-2); padding: 12px 0 4px; }
+  .kg-subhead:first-child { padding-top: 10px; }
+
+  .kg-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 16px;
+  }
+  .kg-expander-body .kg-row + .kg-row, .kg-card > .kg-row + .kg-row { border-top: 1px solid var(--kg-divider); }
+  .kg-row-label { display: flex; flex-direction: column; gap: 1px; width: 150px; flex: 0 0 auto; }
+  .kg-row-label b { font-weight: 500; }
+  .kg-row-label span { font-size: 11.5px; color: var(--kg-text-2); }
+
+  .kg-switch {
+    position: relative; flex: 0 0 auto;
+    width: 40px; height: 20px; border-radius: 999px;
+    border: 1px solid var(--kg-text-2); background: transparent;
+  }
+  .kg-knob {
+    position: absolute; top: 50%; left: 3px;
+    width: 12px; height: 12px; border-radius: 999px;
+    background: var(--kg-text-2);
+    transform: translateY(-50%);
+    transition: left 0.14s ease, background 0.14s ease;
+  }
+  .kg-switch.is-on { background: var(--kg-accent); border-color: var(--kg-accent); }
+  .kg-switch.is-on .kg-knob { left: 23px; background: #fff; }
+  .kg-switch:hover .kg-knob { transform: translateY(-50%) scale(1.15); }
+
+  .kg-slider {
+    -webkit-appearance: none; appearance: none;
+    flex: 1 1 auto; min-width: 60px; height: 18px;
+    background: transparent;
+  }
+  .kg-slider::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 999px;
+    background: linear-gradient(to right, var(--kg-accent) var(--kg-fill, 50%), var(--kg-track) var(--kg-fill, 50%));
+  }
+  .kg-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 999px;
+    background: var(--kg-accent); border: 4px solid light-dark(#ffffff, #1f1f1f);
+    box-shadow: 0 0 0 1px var(--kg-stroke); margin-top: -7px;
+  }
+
+  .kg-selector { display: inline-flex; gap: 6px; }
+  .kg-selector-sm button {
+    border: 1px solid var(--kg-stroke); border-radius: 5px; background: var(--kg-control);
+    color: var(--kg-text-2); font: inherit; font-size: 12px; padding: 5px 11px;
+  }
+  .kg-selector-sm button:hover { background: var(--kg-control-hover); color: var(--kg-text); }
+  .kg-selector-sm button.is-active { background: var(--kg-accent); border-color: var(--kg-accent); color: #fff; }
+
+  .kg-select {
+    margin-left: auto;
+    border: 1px solid var(--kg-stroke); border-radius: 5px; border-bottom-color: var(--kg-text-3);
+    background: var(--kg-control); color: var(--kg-text);
+    font: inherit; font-size: 12.5px; padding: 5px 10px;
+  }
+
+  .kg-color {
+    width: 30px; height: 22px; padding: 0; flex: 0 0 auto;
+    border: 1px solid var(--kg-stroke);
+    border-radius: 5px; background: var(--kg-control);
+  }
+  .kg-color::-webkit-color-swatch-wrapper { padding: 2px; }
+  .kg-color::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+  .kg-value { flex: 0 0 42px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--kg-text-2); }
+
+  .kg-btn {
+    border: 1px solid var(--kg-stroke); border-radius: 5px;
+    background: var(--kg-control); color: var(--kg-text);
+    font: inherit; font-size: 12.5px; padding: 5px 14px;
+  }
+  .kg-btn:hover { background: var(--kg-control-hover); }
+  .kg-btn-primary { background: var(--kg-accent); border-color: var(--kg-accent); color: #fff; }
+  .kg-btn-primary:hover { filter: brightness(1.12); background: var(--kg-accent); }
+  .kg-btnrow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+  .kg-kernelrow { display: flex; gap: 16px; padding: 4px 16px 16px; border-top: 1px solid var(--kg-divider); }
+  .kg-kernelthumb {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    width: 104px; height: 70px; flex: 0 0 auto;
+    border: 1px dashed var(--kg-text-3); border-radius: 6px;
+    color: var(--kg-text-3); font-size: 11px; background: var(--kg-control);
+  }
+  .kg-kernelthumb svg { width: 20px; height: 20px; }
+  .kg-kernelmeta { display: flex; flex-direction: column; justify-content: center; font-size: 12.5px; color: var(--kg-text-2); }
+  .kg-kernelmeta b { color: var(--kg-text); font-weight: 500; }
+
+  .kg-chiprow { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; }
+  .kg-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--kg-stroke); border-radius: 5px;
+    background: var(--kg-control); padding: 4px 10px; font-size: 12.5px;
+  }
+  .kg-chip small { color: var(--kg-text-3); }
+  .kg-chip-add { background: transparent; border-style: dashed; color: var(--kg-text-2); }
+
+  .kg-footer { padding: 2px 4px 0; font-size: 11px; color: var(--kg-text-3); }
+
+  .kg-app button { cursor: pointer; }
+  .kg-app .kg-slider { cursor: pointer; }
+  .kg-app button:focus-visible, .kg-slider:focus-visible { outline: 2px solid var(--kg-accent); outline-offset: 2px; }
+
+  @media (max-width: 560px) {
+    .kg-content { padding: 16px 12px; }
+    .kg-row-label { width: 112px; }
+    .kg-kernelrow { flex-direction: column; }
+  }
+</style>
+
+<script>
+  (function () {
+    const root = document.getElementById("kernelglow-root");
+    if (!root) return;
+
+    root.querySelectorAll(".kg-switch").forEach(function (sw) {
+      sw.addEventListener("click", function () {
+        const on = sw.classList.toggle("is-on");
+        sw.setAttribute("aria-checked", on ? "true" : "false");
+      });
+    });
+
+    root.querySelectorAll(".kg-expander-toggle").forEach(function (t) {
+      t.addEventListener("click", function (e) {
+        if (e.target.closest(".kg-switch")) { return; }
+        const open = t.getAttribute("aria-expanded") === "true";
+        t.setAttribute("aria-expanded", String(!open));
+        const body = t.parentElement.querySelector(".kg-expander-body");
+        if (body) { body.hidden = open; }
+      });
+    });
+
+    root.querySelectorAll(".kg-slider").forEach(function (r) {
+      const row = r.closest(".kg-row");
+      const out = row ? row.querySelector(".kg-value") : null;
+      const update = function () {
+        const min = parseFloat(r.min), max = parseFloat(r.max), val = parseFloat(r.value);
+        const pct = ((val - min) / (max - min)) * 100;
+        r.style.setProperty("--kg-fill", pct + "%");
+        if (out) { out.textContent = Number(val).toFixed(String(r.step).split(".")[1] ? 2 : 0); }
+      };
+      r.addEventListener("input", update);
+      update();
+    });
+
+    root.querySelectorAll(".kg-selector").forEach(function (sel) {
+      sel.querySelectorAll("button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          sel.querySelectorAll("button").forEach(function (x) {
+            x.classList.toggle("is-active", x === b);
+            x.setAttribute("aria-pressed", x === b ? "true" : "false");
+          });
+        });
+      });
+    });
+
+    if (globalThis.Tweak) {
+      const st = { accent: "#0fa7e6", radius: 8 };
+      const render = function () {
+        root.style.setProperty("--kg-accent", st.accent);
+        root.style.setProperty("--kg-radius-card", st.radius + "px");
+      };
+      render();
+      const tweak = new Tweak({ container: root, onChange: render });
+      tweak.addColorPicker(st, "accent", { label: "强调色", reference: "--kg-accent" });
+      tweak.addSlider(st, "radius", { label: "卡片圆角", min: 0, max: 16, unit: "px", reference: "--kg-radius-card" });
+    }
+
+    if (globalThis.lucide) { lucide.createIcons({ attrs: { width: 16, height: 16 } }); }
+  })();
+</script>
