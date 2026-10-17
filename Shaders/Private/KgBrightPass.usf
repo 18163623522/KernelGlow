@@ -80,6 +80,7 @@ RWTexture2D<float4> SceneColorUAV;
 float AddSizeX;
 float AddSizeY;
 float AddScale;
+float AddReplace;
 
 [numthreads(8, 8, 1)]
 void KgDebugAddMainCS(uint3 DTid : SV_DispatchThreadID)
@@ -92,5 +93,51 @@ void KgDebugAddMainCS(uint3 DTid : SV_DispatchThreadID)
 	}
 	float3 b = AddTexture.SampleLevel(AddSampler, (DTid.xy + 0.5) / float2(AddSizeX, AddSizeY), 0).rgb;
 	float3 c = SceneColorUAV[DTid.xy].rgb;
-	SceneColorUAV[DTid.xy] = float4(c + b * AddScale, 1.0);
+	float3 result = (AddReplace > 0.5) ? (b * AddScale) : (c + b * AddScale);
+	SceneColorUAV[DTid.xy] = float4(result, 1.0);
+}
+
+// ---- 卷积（Task 6）：固定 T×T tap 网格 + kernel mip 采样 + 逐像素能量归一化 ----
+Texture2D ConvInputTexture;
+SamplerState ConvInputSampler;
+Texture2D ConvKernelTexture;
+SamplerState ConvKernelSampler;
+RWTexture2D<float4> ConvOutputTexture;
+float ConvOutSizeX;
+float ConvOutSizeY;
+float ConvTexelSizeX;
+float ConvTexelSizeY;
+float ConvExtentPx;
+float ConvKernelLod;
+int ConvTapCount;
+
+[numthreads(8, 8, 1)]
+void KgConvolveMainCS(uint3 DTid : SV_DispatchThreadID)
+{
+	if (DTid.x >= (uint) ConvOutSizeX || DTid.y >= (uint) ConvOutSizeY)
+	{
+		return;
+	}
+	float2 uv = (DTid.xy + 0.5) * float2(ConvTexelSizeX, ConvTexelSizeY);
+	float3 acc = 0;
+	float wsum = 0;
+
+	[loop]
+	for (int y = 0; y < 16; ++y)
+	{
+		if (y >= ConvTapCount) { break; }
+		[loop]
+		for (int x = 0; x < 16; ++x)
+		{
+			if (x >= ConvTapCount) { break; }
+			float2 tuv = (float2(x, y) + 0.5) / ConvTapCount;
+			float w = ConvKernelTexture.SampleLevel(ConvKernelSampler, tuv, ConvKernelLod).r;
+			float2 off = (tuv - 0.5) * ConvExtentPx * float2(ConvTexelSizeX, ConvTexelSizeY);
+			acc += ConvInputTexture.SampleLevel(ConvInputSampler, uv + off, 0).rgb * w;
+			wsum += w;
+		}
+	}
+
+	acc /= max(wsum, 1e-4); // 能量归一化：kernel 越大不再额外注入能量
+	ConvOutputTexture[DTid.xy] = float4(acc, 1.0);
 }

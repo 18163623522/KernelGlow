@@ -16,14 +16,24 @@
 
 DEFINE_LOG_CATEGORY(LogKernelGlow);
 
+TAutoConsoleVariable<int32> CVarKgAutoScreenshot(
+	TEXT("kg.AutoScreenshot"), 0,
+	TEXT("KernelGlow: 延迟 3 秒自动执行 HighResShot（验证管线用）"),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarKgDebugSource(
+	TEXT("kg.DebugSource"), 0,
+	TEXT("KernelGlow: 替换模式的数据源 0=卷积 1=bright0 2=最深一级 4=常量绿回归 5=管线+绿"),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarKgDebugReplace(
+	TEXT("kg.DebugReplace"), 0,
+	TEXT("KernelGlow: 合成改为替换模式（诊断卷积内容用）"),
+	ECVF_Default);
+
 namespace
 {
 	// 验证管线自截图：kg.AutoScreenshot 1 后延迟 3 秒执行 HighResShot；kg.AutoQuit 1 则截图后 1 秒退出进程
-	TAutoConsoleVariable<int32> CVarKgAutoScreenshot(
-		TEXT("kg.AutoScreenshot"), 0,
-		TEXT("KernelGlow: 延迟 3 秒自动执行 HighResShot（验证管线用）"),
-		ECVF_Default);
-
 	TAutoConsoleVariable<int32> CVarKgAutoQuit(
 		TEXT("kg.AutoQuit"), 0,
 		TEXT("KernelGlow: 自截图完成后 1 秒自动退出进程"),
@@ -51,6 +61,8 @@ void FKernelGlowModule::StartupModule()
 			ViewExtension = FSceneViewExtensions::NewExtension<FKgViewExtension>();
 			UE_LOG(LogKernelGlow, Log, TEXT("KernelGlow: ViewExtension registered."));
 		}
+		// kernel 纹理在游戏线程预创建（Texture.cpp 断言禁止渲染线程创建）
+		GetOrCreateKernelTexture();
 	});
 
 	// 自截图 ticker（验证管线）
@@ -101,11 +113,8 @@ bool FKernelGlowModule::AutoScreenshotTick(float DeltaTime)
 
 void FKernelGlowModule::ShutdownModule()
 {
-	if (KernelTextureInternal)
-	{
-		KernelTextureInternal->RemoveFromRoot();
-		KernelTextureInternal = nullptr;
-	}
+	// 引擎关机阶段 UObject 数组已部分失效，不做 RemoveFromRoot（根引用随进程销毁）
+	KernelTextureInternal = nullptr;
 	ViewExtension.Reset();
 }
 

@@ -95,6 +95,7 @@ public:
 		SHADER_PARAMETER(float, AddSizeX)
 		SHADER_PARAMETER(float, AddSizeY)
 		SHADER_PARAMETER(float, AddScale)
+		SHADER_PARAMETER(float, AddReplace)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AddTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, AddSampler)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SceneColorUAV)
@@ -110,5 +111,38 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("ENABLE_TYPED_UAV_LOAD"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+	}
+};
+
+/** Task 6 单尺度卷积 */
+class FKgConvolveCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FKgConvolveCS);
+	SHADER_USE_PARAMETER_STRUCT(FKgConvolveCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float, ConvOutSizeX)
+		SHADER_PARAMETER(float, ConvOutSizeY)
+		SHADER_PARAMETER(float, ConvTexelSizeX)
+		SHADER_PARAMETER(float, ConvTexelSizeY)
+		SHADER_PARAMETER(float, ConvExtentPx)
+		SHADER_PARAMETER(float, ConvKernelLod)
+		SHADER_PARAMETER(int, ConvTapCount)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ConvInputTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ConvInputSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ConvKernelTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ConvKernelSampler)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ConvOutputTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };

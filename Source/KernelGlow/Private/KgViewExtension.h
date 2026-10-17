@@ -8,29 +8,40 @@ class FViewInfo;
 
 /**
  * KernelGlow 渲染注入。
- * UE 5.7 签名（PostProcessInputs 改为 uniform buffer，改用 SubscribeToPostProcessingPass 链式通道）。
- * 槽位选择（设计文档 5/9 节）：
- * - bCompositeHDR=true：MotionBlur 槽（BL_SceneColorBeforeBloom）= HDR、tonemap 前、曝光计量之后（无呼吸）
- * - bCompositeHDR=false：AfterTonemap 槽 = 风格化 LDR 合成
+ * 钩子：PrePostProcessPass_RenderThread（RealBloom 5.7 同款，每帧稳定触发）；
+ * SceneColor 取自 FSceneTextureUniformParameters，全部 pass 以 UAV 原地写入。
  */
 class FKgViewExtension final : public FSceneViewExtensionBase
 {
 public:
+	/** 设置 POD 快照：游戏线程每帧写入，渲染线程只读（禁止 RT 访问设置 UObject） */
+	struct FCachedSettings
+	{
+		bool bEnabled = false;
+		bool bCompositeHDR = true;
+		float Threshold = 1.0f;
+		float OverallIntensity = 1.0f;
+		float Gain = 1.0f;
+		float Scale0Radius = 0.06f;
+		float Scale0Intensity = 0.8f;
+		int32 Quality = 1;
+	};
+
 	explicit FKgViewExtension(const FAutoRegister& AutoRegister);
 
 	//~ ISceneViewExtension
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override {}
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override {}
-	virtual void SubscribeToPostProcessingPass(ISceneViewExtension::EPostProcessingPass Pass, const FSceneView& InView, FPostProcessingPassDelegateArray& InOutPassCallbacks, bool bIsPassEnabled) override;
+	virtual void PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs) override;
 
 private:
-	FScreenPassTexture PostProcessPassAfterBloomLocation_RenderThread(
-		FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs);
-	FScreenPassTexture PostProcessPassAfterTonemap_RenderThread(
-		FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs);
-
 	static bool ShouldProcessView_RenderThread(const FSceneView& View);
+
+	// 游戏线程（BeginRenderViewFamily）缓存，渲染线程只读：禁止 RT 访问 UObject
+	FTextureRHIRef KernelTextureRHI;
+	int32 KernelTexSizeX = 0;
+	FCachedSettings Cached;
 };

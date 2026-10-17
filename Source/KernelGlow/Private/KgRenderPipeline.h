@@ -19,8 +19,14 @@ namespace KgRender
 	 * 亮度提取 + 金字塔降采样。
 	 * 输出 BrightLevel0（半分辨率 bright pass），供 Task 6 卷积 / Task 4 调试叠加使用。
 	 */
-	void RenderGlowPipeline(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, const FGlowParams& Params, FRDGTextureRef& OutBrightLevel0);
+		void RenderGlowPipeline(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, const FGlowParams& Params, TArray<FRDGTextureRef>& OutLevels);
 
-	/** Task 4 临时：scene += bright0 * Scale（双线性上采样） */
-	void RenderDebugAdd(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef BrightTexture, float Scale);
+	/** 在指定层级上做单尺度卷积，返回同尺寸卷积结果 */
+	void RenderConvolve(FRDGBuilder& GraphBuilder, FRDGTextureRef LevelTexture, FRDGTextureRef KernelTexture, float ExtentPx, int32 TapCount, FRDGTextureRef& OutConvolved);
+
+	/** Task 3 placeholder：原地常量绿写入（回归验证用） */
+	void RenderPlaceholderPass(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor);
+
+	/** 合成：scene += tex * Scale（双线性上采样，Task 6 起为正式合成路径） */
+	void RenderDebugAdd(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef BrightTexture, float Scale, bool bReplace = false);
 }

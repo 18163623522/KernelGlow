@@ -2,20 +2,51 @@
 #include "KernelGlow.h"
 #include "KernelGlowSettings.h"
 #include "KgRenderPipeline.h"
-#include "PostProcess/PostProcessMaterialInputs.h"
+#include "KgKernelMath.h"
 #include "SceneView.h"
-
-extern TAutoConsoleVariable<int32> CVarKgForceDisable;
+#include "PostProcess/PostProcessInputs.h"
+#include "Modules/ModuleManager.h"
+#include "RenderUtils.h"
+#include "Engine/Texture2D.h"
 
 // A/B 验证用运行时旁路开关（文件作用域，保证外部链接）
 TAutoConsoleVariable<int32> CVarKgForceDisable(
 	TEXT("kg.ForceDisable"), 0,
 	TEXT("KernelGlow: 运行时强制旁路注入（A/B 验证用）"),
-	ECVF_RenderThreadSafe);
+	ECVF_Default);
+
+extern TAutoConsoleVariable<int32> CVarKgDebugReplace;
+extern TAutoConsoleVariable<int32> CVarKgDebugSource;
 
 FKgViewExtension::FKgViewExtension(const FAutoRegister& AutoRegister)
 	: FSceneViewExtensionBase(AutoRegister)
 {
+}
+
+/** 游戏线程：缓存设置快照与 kernel RHI 引用，渲染线程不触碰 UObject */
+void FKgViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
+{
+	const UKernelGlowSettings* Settings = GetDefault<UKernelGlowSettings>();
+	Cached.bEnabled = Settings->bEnabled;
+	Cached.bCompositeHDR = Settings->bCompositeHDR;
+	Cached.Threshold = Settings->Threshold;
+	Cached.OverallIntensity = Settings->OverallIntensity;
+	Cached.Gain = Settings->Gain;
+	Cached.Scale0Radius = Settings->Scales[0].Radius;
+	Cached.Scale0Intensity = Settings->Scales[0].Intensity;
+	Cached.Quality = Settings->Quality;
+
+	UTexture2D* KernelTex = FModuleManager::GetModuleChecked<FKernelGlowModule>(TEXT("KernelGlow")).GetKernelTextureForRender();
+	if (KernelTex && KernelTex->GetResource())
+	{
+		KernelTextureRHI = KernelTex->GetResource()->TextureRHI;
+		KernelTexSizeX = KernelTex->GetSizeX();
+	}
+	else
+	{
+		KernelTextureRHI.SafeRelease();
+		KernelTexSizeX = 0;
+	}
 }
 
 /**
@@ -36,83 +67,98 @@ bool FKgViewExtension::ShouldProcessView_RenderThread(const FSceneView& View)
 	return true;
 }
 
-void FKgViewExtension::SubscribeToPostProcessingPass(
-	ISceneViewExtension::EPostProcessingPass Pass,
-	const FSceneView& InView,
-	FPostProcessingPassDelegateArray& InOutPassCallbacks,
-	bool bIsPassEnabled)
+/**
+ * 每帧稳定触发的注入点（RealBloom 5.7 同款）：
+ * SceneColor 取自 FSceneTextureUniformParameters（SceneTexturesConfig.h:42），
+ * 全部 pass 以 UAV 原地写入，不走返回值链。
+ */
+void FKgViewExtension::PrePostProcessPass_RenderThread(
+	FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs)
 {
-	static std::atomic<int32> DiagCount{ 0 };
-	if (DiagCount.fetch_add(1) < 8)
+	if (!Cached.bEnabled || !Inputs.SceneTextures)
 	{
-		UE_LOG(LogKernelGlow, Log, TEXT("Subscribe pass=%d enabled=%d HDR=%d"),
-			static_cast<int32>(Pass), bIsPassEnabled ? 1 : 0,
-			GetDefault<UKernelGlowSettings>()->bCompositeHDR ? 1 : 0);
+		return;
 	}
-
-	const UKernelGlowSettings* Settings = GetDefault<UKernelGlowSettings>();
-	if (!Settings || !Settings->bEnabled || !bIsPassEnabled)
+	if (!ShouldProcessView_RenderThread(View))
 	{
 		return;
 	}
 
-	if (Settings->bCompositeHDR && Pass == ISceneViewExtension::EPostProcessingPass::AfterDOF)
+	FRDGTextureRef SceneColor = (*Inputs.SceneTextures)->SceneColorTexture;
+	if (!SceneColor)
 	{
-		// AfterDOF 槽位：始终订阅（引擎对 DOF 前四个槽不裁剪）；HDR、tonemap 前
-		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateRaw(
-			this, &FKgViewExtension::PostProcessPassAfterBloomLocation_RenderThread));
-	}
-	else if (!Settings->bCompositeHDR && Pass == ISceneViewExtension::EPostProcessingPass::Tonemap)
-	{
-		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateRaw(
-			this, &FKgViewExtension::PostProcessPassAfterTonemap_RenderThread));
-	}
-}
-
-FScreenPassTexture FKgViewExtension::PostProcessPassAfterBloomLocation_RenderThread(
-	FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs)
-{
-	static std::atomic<int32> RunCount{ 0 };
-	if (RunCount.fetch_add(1) < 3)
-	{
-		UE_LOG(LogKernelGlow, Log, TEXT("AfterDOF callback ran"));
-	}
-	FScreenPassTexture SceneColor = Inputs.ReturnUntouchedSceneColorForPostProcessing(GraphBuilder);
-	if (!SceneColor.IsValid() || !ShouldProcessView_RenderThread(View))
-	{
-		return SceneColor;
+		return;
 	}
 
-	const UKernelGlowSettings* Settings = GetDefault<UKernelGlowSettings>();
+	// 诊断 4：常量绿写入（机制验证）
+	if (CVarKgDebugSource.GetValueOnRenderThread() == 4)
+	{
+		KgRender::RenderPlaceholderPass(GraphBuilder, SceneColor);
+		return;
+	}
+
 	KgRender::FGlowParams Params;
-	Params.Threshold = Settings->Threshold;
+	Params.Threshold = Cached.Threshold;
 	Params.Knee = 0.5f;
-	Params.PyramidLevels = (Settings->Quality == 0) ? 3 : (Settings->Quality == 2 ? 6 : 5);
+	Params.PyramidLevels = (Cached.Quality == 0) ? 3 : (Cached.Quality == 2 ? 6 : 5);
 
-	FRDGTextureRef Bright0 = nullptr;
-	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor.Texture, Params, Bright0);
-
-	// Task 4 临时合成：scene += bright0 * 2（Task 6 换正式合成）
-	KgRender::RenderDebugAdd(GraphBuilder, SceneColor.Texture, Bright0, Params.DebugAddScale);
-	return SceneColor;
-}
-
-FScreenPassTexture FKgViewExtension::PostProcessPassAfterTonemap_RenderThread(
-	FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs)
-{
-	FScreenPassTexture SceneColor = Inputs.ReturnUntouchedSceneColorForPostProcessing(GraphBuilder);
-	if (!SceneColor.IsValid() || !ShouldProcessView_RenderThread(View))
+	// 诊断 5：完整管线 + 常量绿（管线是否破坏渲染图）
+	if (CVarKgDebugSource.GetValueOnRenderThread() == 5)
 	{
-		return SceneColor;
+		TArray<FRDGTextureRef> Levels5;
+		KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels5);
+		KgRender::RenderPlaceholderPass(GraphBuilder, SceneColor);
+		return;
 	}
 
-	const UKernelGlowSettings* Settings = GetDefault<UKernelGlowSettings>();
-	KgRender::FGlowParams Params;
-	Params.Threshold = Settings->Threshold;
-	Params.PyramidLevels = (Settings->Quality == 0) ? 3 : (Settings->Quality == 2 ? 6 : 5);
+	// 诊断 1：bright0 叠加（跳过卷积）
+	if (CVarKgDebugSource.GetValueOnRenderThread() == 1)
+	{
+		TArray<FRDGTextureRef> Levels1;
+		KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels1);
+		if (Levels1.Num() > 0)
+		{
+			KgRender::RenderDebugAdd(GraphBuilder, SceneColor, Levels1[0], 1.0f, false);
+		}
+		return;
+	}
+	Params.Threshold = Cached.Threshold;
+	Params.Knee = 0.5f;
+	Params.PyramidLevels = (Cached.Quality == 0) ? 3 : (Cached.Quality == 2 ? 6 : 5);
 
-	FRDGTextureRef Bright0 = nullptr;
-	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor.Texture, Params, Bright0);
-	KgRender::RenderDebugAdd(GraphBuilder, SceneColor.Texture, Bright0, Params.DebugAddScale);
-	return SceneColor;
+	TArray<FRDGTextureRef> Levels;
+	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels);
+
+	constexpr int32 TapCount = 8;
+	if (Levels.Num() == 0 || KernelTextureRHI == nullptr)
+	{
+		return;
+	}
+
+	const float BaseWidth = (float)SceneColor->Desc.Extent.X;
+	const int32 Level = KgKernelMath::ChooseLevelForRadius(Cached.Scale0Radius, BaseWidth, TapCount, Levels.Num() - 1);
+	const float ExtentPx = KgKernelMath::ComputeExtentPx(Cached.Scale0Radius, BaseWidth, Level);
+
+	FRDGTextureRef RdgKernel = GraphBuilder.RegisterExternalTexture(
+		CreateRenderTarget(KernelTextureRHI, TEXT("KgKernelTex")));
+
+	FRDGTextureRef Convolved;
+	KgRender::RenderConvolve(GraphBuilder, Levels[Level], RdgKernel, ExtentPx, TapCount, Convolved);
+
+	const float AddScale = Cached.OverallIntensity * Cached.Scale0Intensity * Cached.Gain;
+	const int32 DebugSource = CVarKgDebugSource.GetValueOnRenderThread();
+	FRDGTextureRef AddTexture = (DebugSource == 1) ? Levels[0]
+		: (DebugSource == 2) ? Levels[Levels.Num() - 1]
+		: (DebugSource == 3) ? RdgKernel
+		: Convolved;
+	const float AddScaleFinal = (DebugSource != 0) ? 1.0f : AddScale;
+	KgRender::RenderDebugAdd(GraphBuilder, SceneColor, AddTexture, AddScaleFinal,
+		CVarKgDebugReplace.GetValueOnRenderThread() != 0);
+
+	static std::atomic<int32> ConvDiag{ 0 };
+	if (ConvDiag.fetch_add(1) < 2 || ConvDiag.load() % 120 == 0)
+	{
+		UE_LOG(LogKernelGlow, Log, TEXT("PrePP run #%d levels=%d level=%d extent=%.1f scale=%.2f"),
+			ConvDiag.load(), Levels.Num(), Level, ExtentPx, AddScaleFinal);
+	}
 }
