@@ -1,0 +1,96 @@
+// KernelGlow 亮度提取 + 金字塔降采样 + 调试叠加（Task 4）
+// BrightPass：软阈值（膝部过渡）提取，半分辨率；Downsample：13-tap box（Jimenez）。
+
+#include "/Engine/Public/Platform.ush"
+
+// ---- BrightPass：提取 + 半分辨率降采样 ----
+Texture2D InputTexture;
+SamplerState InputSampler;
+RWTexture2D<float4> OutputTexture;
+float OutputSizeX;
+float OutputSizeY;
+float Threshold;
+float Knee;
+
+float3 KgSoftThreshold(float3 c, float t, float knee)
+{
+	float luma = max(max(c.r, c.g), c.b);
+	float kneeT = t * knee + 1e-4;
+	float soft = clamp(luma - t + kneeT, 0.0, 2.0 * kneeT);
+	soft = soft * soft / (4.0 * kneeT);
+	float contribution = max(soft, luma - t) / max(luma, 1e-4);
+	return c * contribution;
+}
+
+[numthreads(8, 8, 1)]
+void KgBrightPassMainCS(uint3 DTid : SV_DispatchThreadID)
+{
+	if (DTid.x >= (uint) OutputSizeX || DTid.y >= (uint) OutputSizeY)
+	{
+		return;
+	}
+	float2 uv = (DTid.xy + 0.5) / float2(OutputSizeX, OutputSizeY);
+	float3 c = InputTexture.SampleLevel(InputSampler, uv, 0).rgb;
+	OutputTexture[DTid.xy] = float4(KgSoftThreshold(c, Threshold, Knee), 1.0);
+}
+
+// ---- Downsample：13-tap box ----
+Texture2D DownInputTexture;
+SamplerState DownInputSampler;
+RWTexture2D<float4> DownOutputTexture;
+float DownOutputSizeX;
+float DownOutputSizeY;
+float DownTexelSizeX;
+float DownTexelSizeY;
+
+[numthreads(8, 8, 1)]
+void KgDownsampleMainCS(uint3 DTid : SV_DispatchThreadID)
+{
+	if (DTid.x >= (uint) DownOutputSizeX || DTid.y >= (uint) DownOutputSizeY)
+	{
+		return;
+	}
+	float2 uv = (DTid.xy + 0.5) * float2(DownTexelSizeX, DownTexelSizeY) * 2.0;
+	float4 a = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2(-2,  2), 0);
+	float4 b = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 0,  2), 0);
+	float4 c = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 2,  2), 0);
+	float4 d = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2(-2,  0), 0);
+	float4 e = DownInputTexture.SampleLevel(DownInputSampler, uv, 0);
+	float4 f = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 2,  0), 0);
+	float4 g = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2(-2, -2), 0);
+	float4 h = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 0, -2), 0);
+	float4 i = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 2, -2), 0);
+	float4 j = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2(-1,  1), 0);
+	float4 k = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 1,  1), 0);
+	float4 l = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2(-1, -1), 0);
+	float4 m = DownInputTexture.SampleLevel(DownInputSampler, uv + float2(DownTexelSizeX, DownTexelSizeY) * float2( 1, -1), 0);
+
+	float4 result = e * 0.125;
+	result += (a + c + g + i) * 0.03125;
+	result += (b + d + f + h) * 0.0625;
+	result += (j + k + l + m) * 0.125;
+
+	DownOutputTexture[DTid.xy] = result;
+}
+
+// ---- 调试叠加：scene += bright * Scale（Task 6 换成正式合成） ----
+Texture2D AddTexture;
+SamplerState AddSampler;
+RWTexture2D<float4> SceneColorUAV;
+float AddSizeX;
+float AddSizeY;
+float AddScale;
+
+[numthreads(8, 8, 1)]
+void KgDebugAddMainCS(uint3 DTid : SV_DispatchThreadID)
+{
+	uint2 OutSize;
+	SceneColorUAV.GetDimensions(OutSize.x, OutSize.y);
+	if (DTid.x >= OutSize.x || DTid.y >= OutSize.y)
+	{
+		return;
+	}
+	float3 b = AddTexture.SampleLevel(AddSampler, (DTid.xy + 0.5) / float2(AddSizeX, AddSizeY), 0).rgb;
+	float3 c = SceneColorUAV[DTid.xy].rgb;
+	SceneColorUAV[DTid.xy] = float4(c + b * AddScale, 1.0);
+}

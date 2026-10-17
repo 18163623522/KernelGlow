@@ -30,4 +30,7 @@
 |---|---|---|---|
 | 1 | Task 1-2 骨架 | UBT Editor/Development 双目标 Succeeded（日志 UBT Log.txt） | ✅ 数值通过 |
 | 2 | Task 3 注入链路 | `T3_injection_green.png`（整屏纯绿，mean RGB=[0.8, 227, 0.2]，ON/OFF 同帧时像素差法确证注入生效） | ✅ 视觉通过 |
-| 3 | Task 3 待办 | placeholder 1.35× tint 的 ON/OFF 差被自动曝光补偿（同帧时差≈0），真实管线的亮度 A/B 验收需**固定曝光**（Task 6 落实） | ⚠️ 记录在案 |
+| 3 | Task 3 待办 | 后续验收改用固定曝光启动参数（ShowFlag.EyeAdaptation 0 + r.Bloom.Quality 0） | ✅ 已落实 |
+| 4 | Task 4 测试关卡 | `/Game/Maps/TestGlowMap`：5 发光体(强度2/5/10/20/50，前2个Stencil=1) + 灰盒参照 + 唯一出生点；构建脚本 `Saved/KernelGlowValidation/build_test_level.py` | ✅ 数值通过 |
+| 5 | Task 4 BrightPass+金字塔 | `T4_brightpass_glow.png`：发光球体带柔和光晕，参照灰盒完全干净（阈值选择性生效） | ✅ 视觉通过 |
+| 6 | Task 4 待办 | 地面过暗（中性曝光下默认光强不足），Task 5 前补 3 盏平行光改善场景可见度 | ⚠️ 记录在案 |

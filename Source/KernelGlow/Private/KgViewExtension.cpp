@@ -75,7 +75,7 @@ FScreenPassTexture FKgViewExtension::PostProcessPassAfterBloomLocation_RenderThr
 	static std::atomic<int32> RunCount{ 0 };
 	if (RunCount.fetch_add(1) < 3)
 	{
-		UE_LOG(LogKernelGlow, Log, TEXT("AfterBloomLocation callback ran"));
+		UE_LOG(LogKernelGlow, Log, TEXT("AfterDOF callback ran"));
 	}
 	FScreenPassTexture SceneColor = Inputs.ReturnUntouchedSceneColorForPostProcessing(GraphBuilder);
 	if (!SceneColor.IsValid() || !ShouldProcessView_RenderThread(View))
@@ -83,7 +83,17 @@ FScreenPassTexture FKgViewExtension::PostProcessPassAfterBloomLocation_RenderThr
 		return SceneColor;
 	}
 
-	KgRender::RenderPlaceholderPass(GraphBuilder, SceneColor.Texture);
+	const UKernelGlowSettings* Settings = GetDefault<UKernelGlowSettings>();
+	KgRender::FGlowParams Params;
+	Params.Threshold = Settings->Threshold;
+	Params.Knee = 0.5f;
+	Params.PyramidLevels = (Settings->Quality == 0) ? 3 : (Settings->Quality == 2 ? 6 : 5);
+
+	FRDGTextureRef Bright0 = nullptr;
+	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor.Texture, Params, Bright0);
+
+	// Task 4 临时合成：scene += bright0 * 2（Task 6 换正式合成）
+	KgRender::RenderDebugAdd(GraphBuilder, SceneColor.Texture, Bright0, Params.DebugAddScale);
 	return SceneColor;
 }
 
@@ -96,6 +106,13 @@ FScreenPassTexture FKgViewExtension::PostProcessPassAfterTonemap_RenderThread(
 		return SceneColor;
 	}
 
-	KgRender::RenderPlaceholderPass(GraphBuilder, SceneColor.Texture);
+	const UKernelGlowSettings* Settings = GetDefault<UKernelGlowSettings>();
+	KgRender::FGlowParams Params;
+	Params.Threshold = Settings->Threshold;
+	Params.PyramidLevels = (Settings->Quality == 0) ? 3 : (Settings->Quality == 2 ? 6 : 5);
+
+	FRDGTextureRef Bright0 = nullptr;
+	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor.Texture, Params, Bright0);
+	KgRender::RenderDebugAdd(GraphBuilder, SceneColor.Texture, Bright0, Params.DebugAddScale);
 	return SceneColor;
 }
