@@ -11,6 +11,36 @@ float OutputSizeX;
 float OutputSizeY;
 float Threshold;
 float Knee;
+Texture2D<uint2> StencilTextureSRV;
+float UseStencilMask;
+float UseLuminanceSource;
+float StencilVals01X;
+float StencilVals01Y;
+float StencilVals01Z;
+float StencilVals01W;
+float StencilVals23X;
+float StencilVals23Y;
+float StencilVals23Z;
+float StencilVals23W;
+float NumStencilVals;
+
+bool KgStencilHit(uint2 FullResPixel)
+{
+	if (UseStencilMask < 0.5)
+	{
+		return false;
+	}
+	uint S = StencilTextureSRV[FullResPixel].g; // 打包 D24S8：stencil 在 g 分量（引擎同款）
+	if (NumStencilVals > 0.5 && S == (uint)StencilVals01X) return true;
+	if (NumStencilVals > 1.5 && S == (uint)StencilVals01Y) return true;
+	if (NumStencilVals > 2.5 && S == (uint)StencilVals01Z) return true;
+	if (NumStencilVals > 3.5 && S == (uint)StencilVals01W) return true;
+	if (NumStencilVals > 4.5 && S == (uint)StencilVals23X) return true;
+	if (NumStencilVals > 5.5 && S == (uint)StencilVals23Y) return true;
+	if (NumStencilVals > 6.5 && S == (uint)StencilVals23Z) return true;
+	if (NumStencilVals > 7.5 && S == (uint)StencilVals23W) return true;
+	return false;
+}
 
 float3 KgSoftThreshold(float3 c, float t, float knee)
 {
@@ -31,6 +61,16 @@ void KgBrightPassMainCS(uint3 DTid : SV_DispatchThreadID)
 	}
 	float2 uv = (DTid.xy + 0.5) / float2(OutputSizeX, OutputSizeY);
 	float3 c = InputTexture.SampleLevel(InputSampler, uv, 0).rgb;
+
+	// 来源掩码：Stencil 白名单 ∪ 全屏亮度源
+	float SourceMask = UseLuminanceSource;
+	if (UseStencilMask > 0.5)
+	{
+		uint2 FullResPixel = DTid.xy * 2;
+		SourceMask = max(SourceMask, KgStencilHit(FullResPixel) ? 1.0 : 0.0);
+	}
+	c *= SourceMask;
+
 	OutputTexture[DTid.xy] = float4(KgSoftThreshold(c, Threshold, Knee), 1.0);
 }
 
@@ -143,4 +183,21 @@ void KgConvolveMainCS(uint3 DTid : SV_DispatchThreadID)
 
 	acc /= max(wsum, 1e-4); // 能量归一化：kernel 越大不再额外注入能量
 	ConvOutputTexture[DTid.xy] = float4(acc * float3(ConvTintR, ConvTintG, ConvTintB), 1.0);
+}
+
+// ---- stencil 可视化（诊断） ----
+Texture2D<uint2> StencilDebugSRV;
+RWTexture2D<float4> StencilDebugOutput;
+
+[numthreads(8, 8, 1)]
+void KgStencilDebugMainCS(uint3 DTid : SV_DispatchThreadID)
+{
+	uint2 OutSize;
+	StencilDebugOutput.GetDimensions(OutSize.x, OutSize.y);
+	if (DTid.x >= OutSize.x || DTid.y >= OutSize.y)
+	{
+		return;
+	}
+	uint S = StencilDebugSRV[DTid.xy].g;
+	StencilDebugOutput[DTid.xy] = float4(S / 8.0, S / 16.0, S / 32.0, 1.0);
 }

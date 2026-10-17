@@ -3,6 +3,7 @@
 #include "KgShaders.h"
 #include "KernelGlow.h"
 #include "RenderGraphUtils.h"
+#include "ScreenPass.h"
 #include "RenderGraphResources.h"
 #include "ScreenPass.h"
 
@@ -11,6 +12,7 @@ IMPLEMENT_GLOBAL_SHADER(FKgBrightPassCS, "/Plugin/KernelGlow/Private/KgBrightPas
 IMPLEMENT_GLOBAL_SHADER(FKgDownsampleCS, "/Plugin/KernelGlow/Private/KgBrightPass.usf", "KgDownsampleMainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FKgDebugAddCS, "/Plugin/KernelGlow/Private/KgBrightPass.usf", "KgDebugAddMainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FKgConvolveCS, "/Plugin/KernelGlow/Private/KgBrightPass.usf", "KgConvolveMainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FKgStencilDebugCS, "/Plugin/KernelGlow/Private/KgBrightPass.usf", "KgStencilDebugMainCS", SF_Compute);
 
 namespace
 {
@@ -34,7 +36,7 @@ namespace
 
 namespace KgRender
 {
-	void RenderGlowPipeline(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, const FGlowParams& Params, TArray<FRDGTextureRef>& OutLevels)
+	void RenderGlowPipeline(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, const FGlowParams& Params, const FSourceInputs& SourceInputs, TArray<FRDGTextureRef>& OutLevels)
 	{
 		OutLevels.Reset();
 		if (!SceneColor)
@@ -53,6 +55,22 @@ namespace KgRender
 			Params0->OutputSizeY = Level0Size.Y;
 			Params0->Threshold = Params.Threshold;
 			Params0->Knee = Params.Knee;
+			Params0->UseStencilMask = Params.bUseStencilMask ? 1.0f : 0.0f;
+			Params0->UseLuminanceSource = Params.bUseLuminanceSource ? 1.0f : 0.0f;
+			for (int32 I = 0; I < 4; ++I)
+			{
+				const float V0 = (I < Params.NumStencilValues) ? (float)Params.StencilValues[I] : 0.0f;
+				const float V1 = (I + 4 < Params.NumStencilValues) ? (float)Params.StencilValues[I + 4] : 0.0f;
+				switch (I)
+				{
+				case 0: Params0->StencilVals01X = V0; Params0->StencilVals23X = V1; break;
+				case 1: Params0->StencilVals01Y = V0; Params0->StencilVals23Y = V1; break;
+				case 2: Params0->StencilVals01Z = V0; Params0->StencilVals23Z = V1; break;
+				case 3: Params0->StencilVals01W = V0; Params0->StencilVals23W = V1; break;
+				}
+			}
+			Params0->NumStencilVals = (float)Params.NumStencilValues;
+			Params0->StencilTextureSRV = SourceInputs.StencilTextureSRV;
 			Params0->InputTexture = SceneColor;
 			Params0->InputSampler = KgSampler::GetRHI();
 			Params0->OutputTexture = GraphBuilder.CreateUAV(Level0);
@@ -166,5 +184,29 @@ namespace KgRender
 				FComputeShaderUtils::GetGroupCount(LevelSize, FIntPoint(8, 8)));
 
 			OutConvolved = Out;
+		}
+	}
+
+	namespace KgRender
+	{
+		void RenderStencilDebug(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureSRVRef StencilSRV)
+		{
+			if (!SceneColor || !StencilSRV)
+			{
+				return;
+			}
+
+			const FIntPoint FullSize = SceneColor->Desc.Extent;
+			FRDGTextureRef Out = CreateLevelTexture(GraphBuilder, FullSize, TEXT("KgStencilDbg"));
+
+			FKgStencilDebugCS::FParameters* Params = GraphBuilder.AllocParameters<FKgStencilDebugCS::FParameters>();
+			Params->StencilDebugSRV = StencilSRV;
+			Params->StencilDebugOutput = GraphBuilder.CreateUAV(Out);
+
+			TShaderMapRef<FKgStencilDebugCS> Shader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("KgStencilDebug"), Shader, Params,
+				FComputeShaderUtils::GetGroupCount(FullSize, FIntPoint(8, 8)));
+
+			AddCopyTexturePass(GraphBuilder, Out, SceneColor);
 		}
 	}

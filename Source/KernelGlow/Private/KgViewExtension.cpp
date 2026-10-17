@@ -44,6 +44,20 @@ void FKgViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 	Cached.CoreRadius = Settings->Core.Radius;
 	Cached.CoreStrength = Settings->Core.Strength;
 	Cached.Quality = Settings->Quality;
+	Cached.bUseStencilMask = Settings->StencilValues.Num() > 0;
+	Cached.bUseLuminanceSource = Settings->bUseFullScreenLuminance;
+	static bool bStencilDiagDone = false;
+	if (!bStencilDiagDone)
+	{
+		bStencilDiagDone = true;
+		UE_LOG(LogKernelGlow, Log, TEXT("Sources: stencilNum=%d luminance=%d"),
+			Settings->StencilValues.Num(), Settings->bUseFullScreenLuminance ? 1 : 0);
+	}
+	Cached.NumStencilValues = FMath::Min(Settings->StencilValues.Num(), 8);
+	for (int32 I = 0; I < Cached.NumStencilValues; ++I)
+	{
+		Cached.StencilValues[I] = Settings->StencilValues[I];
+	}
 
 	UTexture2D* KernelTex = FModuleManager::GetModuleChecked<FKernelGlowModule>(TEXT("KernelGlow")).GetKernelTextureForRender();
 	if (KernelTex && KernelTex->GetResource())
@@ -99,10 +113,26 @@ void FKgViewExtension::PrePostProcessPass_RenderThread(
 		return;
 	}
 
+	static bool bStencilBindDiagDone = false;
+	if (!bStencilBindDiagDone)
+	{
+		bStencilBindDiagDone = true;
+		UE_LOG(LogKernelGlow, Log, TEXT("Stencil bind: separate=%d srvNull=%d"),
+			Inputs.bSeparateCustomStencil ? 1 : 0,
+			(*Inputs.SceneTextures)->CustomStencilTexture == nullptr ? 1 : 0);
+	}
+
 	// 诊断 4：常量绿写入（机制验证）
 	if (CVarKgDebugSource.GetValueOnRenderThread() == 4)
 	{
 		KgRender::RenderPlaceholderPass(GraphBuilder, SceneColor);
+		return;
+	}
+
+	// 诊断 6：stencil 可视化
+	if (CVarKgDebugSource.GetValueOnRenderThread() == 6)
+	{
+		KgRender::RenderStencilDebug(GraphBuilder, SceneColor, (*Inputs.SceneTextures)->CustomStencilTexture);
 		return;
 	}
 
@@ -111,8 +141,19 @@ void FKgViewExtension::PrePostProcessPass_RenderThread(
 	Params.Knee = 0.5f;
 	Params.PyramidLevels = (Cached.Quality == 0) ? 3 : (Cached.Quality == 2 ? 6 : 5);
 
+	KgRender::FSourceInputs SourceInputs;
+	if (Inputs.SceneTextures)
+	{
+		// CustomStencil 以 PF_X24_G8 重解释深度纹理（引擎 CustomDepthRendering.cpp:412 同款；g 分量 = stencil）
+		if (Inputs.CustomDepthTexture)
+		{
+			SourceInputs.StencilTextureSRV = GraphBuilder.CreateSRV(
+				FRDGTextureSRVDesc::CreateWithPixelFormat(Inputs.CustomDepthTexture, PF_X24_G8));
+		}
+	}
+
 	TArray<FRDGTextureRef> Levels;
-	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels);
+	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, SourceInputs, Levels);
 
 	constexpr int32 TapCount = 8;
 	if (Levels.Num() == 0 || KernelTextureRHI == nullptr)

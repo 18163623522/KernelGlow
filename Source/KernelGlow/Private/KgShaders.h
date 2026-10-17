@@ -40,6 +40,18 @@ public:
 		SHADER_PARAMETER(float, OutputSizeY)
 		SHADER_PARAMETER(float, Threshold)
 		SHADER_PARAMETER(float, Knee)
+		SHADER_PARAMETER(float, UseStencilMask)
+		SHADER_PARAMETER(float, UseLuminanceSource)
+		SHADER_PARAMETER(float, StencilVals01X)
+		SHADER_PARAMETER(float, StencilVals01Y)
+		SHADER_PARAMETER(float, StencilVals01Z)
+		SHADER_PARAMETER(float, StencilVals01W)
+		SHADER_PARAMETER(float, StencilVals23X)
+		SHADER_PARAMETER(float, StencilVals23Y)
+		SHADER_PARAMETER(float, StencilVals23Z)
+		SHADER_PARAMETER(float, StencilVals23W)
+		SHADER_PARAMETER(float, NumStencilVals)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, StencilTextureSRV)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputTexture)
@@ -147,5 +159,23 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+/** stencil 可视化（诊断） */
+class FKgStencilDebugCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FKgStencilDebugCS);
+	SHADER_USE_PARAMETER_STRUCT(FKgStencilDebugCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, StencilDebugSRV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, StencilDebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };

@@ -31,6 +31,10 @@ public:
 		float CoreRadius = 3.0f;
 		float CoreStrength = 0.6f;
 		int32 Quality = 1;
+		bool bUseStencilMask = false;
+		bool bUseLuminanceSource = true;
+		int32 StencilValues[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+		int32 NumStencilValues = 0;
 	};
 
 	explicit FKgViewExtension(const FAutoRegister& AutoRegister);
