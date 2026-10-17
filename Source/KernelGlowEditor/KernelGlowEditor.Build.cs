@@ -21,7 +21,8 @@ public class KernelGlowEditor : ModuleRules
 			"Slate",
 			"SlateCore",
 			"EditorStyle",
-			"Projects"
+			"Projects",
+				"WorkspaceMenuStructure"
 		});
 	}
 }
