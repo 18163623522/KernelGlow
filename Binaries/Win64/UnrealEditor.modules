@@ -1,0 +1,8 @@
+{
+	"BuildId": "47537391",
+	"Modules": 
+	{
+		"KernelGlow": "UnrealEditor-KernelGlow.dll",
+		"KernelGlowEditor": "UnrealEditor-KernelGlowEditor.dll"
+	}
+}
