@@ -5,6 +5,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
 #include "Styling/AppStyle.h"
+#include "ToolMenus.h"
+#include "ToolMenuSection.h"
 #include "Misc/EngineVersionComparison.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/EngineVersionComparison.h"
@@ -25,6 +27,24 @@ static const FName KernelGlowTabName("KernelGlow");
 void FKernelGlowEditorModule::StartupModule()
 {
 	RegisterTabSpawner();
+
+	// 窗口菜单加入显式入口（nomad tab 本体在 工具 菜单，这里加一个一眼能看到的）
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateLambda([]()
+	{
+		if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window"))
+		{
+			FToolMenuSection& Section = Menu->AddSection("KernelGlowWindowSection", FText::FromString(TEXT("KernelGlow")));
+			Section.AddMenuEntry("KernelGlowOpenPanel",
+				FText::FromString(TEXT("KernelGlow 辉光面板")),
+				FText::FromString(TEXT("打开 KernelGlow 卷积辉光设置面板")),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"),
+				FUIAction(FExecuteAction::CreateLambda([]()
+				{
+					FGlobalTabmanager::Get()->TryInvokeTab(KernelGlowTabName);
+				})));
+		}
+	}));
+
 	UE_LOG(LogKernelGlowEditor, Log, TEXT("KernelGlowEditor module loaded (Window -> KernelGlow)."));
 
 	// 验收：kg.AutoOpenPanel=1 时延迟自动打开面板

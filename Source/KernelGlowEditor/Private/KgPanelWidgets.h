@@ -3,33 +3,53 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSlider.h"
 #include "Styling/SlateTypes.h"
 #include "Framework/SlateDelegates.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-
 
 /**
- * KernelGlow 编辑器 Fluent 风格自绘控件（WinUI3 风格，Task 10）
+ * KernelGlow 编辑器 Fluent 风格自绘控件（WinUI3 风格 + 过渡动画，Task 10）
  */
 
 // 强调色（青蓝，与 UI 原型一致）
-DECLARE_DELEGATE_OneParam(FSimpleIntDelegate, int32)
-
 namespace KgPanelColor
 {
 	static const FLinearColor Accent = FLinearColor(0.059f, 0.655f, 0.902f);           // #0FA7E6
+	static const FLinearColor AccentHover = FLinearColor(0.13f, 0.78f, 1.0f);
 	static const FLinearColor Card = FLinearColor(0.086f, 0.086f, 0.086f, 0.9f);
-	static const FLinearColor CardHover = FLinearColor(0.12f, 0.12f, 0.12f, 0.95f);
+	static const FLinearColor CardHover = FLinearColor(0.13f, 0.13f, 0.13f, 0.95f);
 	static const FLinearColor Stroke = FLinearColor(1, 1, 1, 0.08f);
 	static const FLinearColor Text = FLinearColor(1, 1, 1, 0.95f);
-	static const FLinearColor Text2 = FLinearColor(1, 1, 1, 0.6f);
-	static const FLinearColor Text3 = FLinearColor(1, 1, 1, 0.4f);
-	static const FLinearColor Track = FLinearColor(1, 1, 1, 0.22f);
+	static const FLinearColor Text2 = FLinearColor(1, 1, 1, 0.65f);
+	static const FLinearColor Text3 = FLinearColor(1, 1, 1, 0.45f);
+	static const FLinearColor TrackOff = FLinearColor(1, 1, 1, 0.38f);                 // 提高关闭态对比
 	static const FLinearColor InfoBarBg = FLinearColor(0.059f, 0.655f, 0.902f, 0.12f);
-	static const FLinearColor Control = FLinearColor(1, 1, 1, 0.06f);
+	static const FLinearColor Control = FLinearColor(1, 1, 1, 0.10f);
+	static const FLinearColor ControlStroke = FLinearColor(1, 1, 1, 0.24f);
 }
 
-/** Fluent 开关（40x20 轨道 + 圆形滑块，自绘） */
+/** 按钮三态样式（选中=实心强调色；未选中=描边高对比） */
+namespace KgPanelStyle
+{
+	static FButtonStyle Selected()
+	{
+		FButtonStyle St;
+		St.SetNormal(FSlateRoundedBoxBrush(KgPanelColor::Accent, 4.0f));
+		St.SetHovered(FSlateRoundedBoxBrush(KgPanelColor::AccentHover, 4.0f));
+		St.SetPressed(FSlateRoundedBoxBrush(FLinearColor(0.04f, 0.5f, 0.72f), 4.0f));
+		return St;
+	}
+	static FButtonStyle Unselected()
+	{
+		FButtonStyle St;
+		St.SetNormal(FSlateRoundedBoxBrush(FLinearColor(1, 1, 1, 0.10f), 4.0f, FLinearColor(1, 1, 1, 0.26f), 1.0f));
+		St.SetHovered(FSlateRoundedBoxBrush(FLinearColor(1, 1, 1, 0.18f), 4.0f, FLinearColor(1, 1, 1, 0.40f), 1.0f));
+		St.SetPressed(FSlateRoundedBoxBrush(FLinearColor(1, 1, 1, 0.24f), 4.0f, FLinearColor(1, 1, 1, 0.32f), 1.0f));
+		return St;
+	}
+}
+
+/** WinUI3 风格开关：40x20 轨道 + 圆形滑块，滑动/变色带过渡动画 */
 class SKgToggleSwitch : public SButton
 {
 public:
@@ -44,7 +64,9 @@ public:
 	void Construct(const FArguments& InArgs)
 	{
 		bIsOn = InArgs._bIsOn;
+		Anim = bIsOn ? 1.0f : 0.0f;
 		OnToggle = InArgs._OnToggle;
+		SetCanTick(true);
 		SButton::FArguments Args;
 		SButton::Construct(Args
 			.OnClicked(this, &SKgToggleSwitch::HandleClicked)
@@ -60,18 +82,30 @@ public:
 		return FVector2D(40, 20);
 	}
 
+	virtual void Tick(const FGeometry& AllottedGeometry, float DeltaTime) override
+	{
+		const float Target = bIsOn ? 1.0f : 0.0f;
+		if (!FMath::IsNearlyEqual(Anim, Target, 0.005f))
+		{
+			Anim = FMath::FInterpTo(Anim, Target, DeltaTime, 16.0f);
+			if (FMath::IsNearlyEqual(Anim, Target, 0.005f)) { Anim = Target; }
+			Invalidate(EInvalidateWidgetReason::Paint);
+		}
+	}
+
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
 		const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
 		int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
-		const FLinearColor TrackCol = bIsOn ? KgPanelColor::Accent : KgPanelColor::Track;
+		// 轨道颜色随动画渐变（关=高对比灰轨，开=强调色）
+		const FLinearColor TrackCol = FMath::Lerp(KgPanelColor::TrackOff, KgPanelColor::Accent, Anim);
 		const FSlateRoundedBoxBrush TrackBrush(TrackCol, 10.0f);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 			AllottedGeometry.ToPaintGeometry(FVector2D(40, 20), FSlateLayoutTransform()),
 			&TrackBrush);
 
-		const float KnobX = bIsOn ? 23.0f : 3.0f;
-		const FSlateRoundedBoxBrush KnobBrush(bIsOn ? FLinearColor::White : KgPanelColor::Text2, 6.0f);
+		const float KnobX = FMath::Lerp(3.0f, 23.0f, Anim);
+		const FSlateRoundedBoxBrush KnobBrush(FMath::Lerp(KgPanelColor::Text2, FLinearColor::White, Anim), 6.0f);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 1,
 			AllottedGeometry.ToPaintGeometry(FVector2D(12, 12), FSlateLayoutTransform(FVector2D(KnobX, 3.0f))),
 			&KnobBrush);
@@ -92,9 +126,9 @@ private:
 	}
 
 	bool bIsOn = false;
+	float Anim = 0.0f;
 	FSimpleDelegate OnToggle;
 };
-
 
 /** WinUI3 风格滑杆：强调色已填充轨道 + 圆形滑块（自绘，替代引擎默认 SSlider 外观） */
 class SKgAccentSlider : public SCompoundWidget
@@ -149,14 +183,16 @@ public:
 				&FillBrush);
 		}
 
+		const bool bHover = IsHovered() || bDragging;
+		const float ThumbR = bHover ? 9.0f : 7.0f;
 		const float ThumbCx = W * Frac;
-		const FSlateRoundedBoxBrush ThumbRing(FLinearColor::White, 9.0f);
+		const FSlateRoundedBoxBrush ThumbRing(FLinearColor::White, ThumbR);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 2,
-			AllottedGeometry.ToPaintGeometry(FVector2D(18, 18), FSlateLayoutTransform(FVector2D(ThumbCx - 9, TrackY - 7))),
+			AllottedGeometry.ToPaintGeometry(FVector2D(ThumbR * 2, ThumbR * 2), FSlateLayoutTransform(FVector2D(ThumbCx - ThumbR, H * 0.5f - ThumbR))),
 			&ThumbRing);
-		const FSlateRoundedBoxBrush ThumbBrush(KgPanelColor::Accent, 8.0f);
+		const FSlateRoundedBoxBrush ThumbBrush(KgPanelColor::Accent, ThumbR - 1.0f);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 3,
-			AllottedGeometry.ToPaintGeometry(FVector2D(16, 16), FSlateLayoutTransform(FVector2D(ThumbCx - 8, TrackY - 6))),
+			AllottedGeometry.ToPaintGeometry(FVector2D((ThumbR - 1.0f) * 2, (ThumbR - 1.0f) * 2), FSlateLayoutTransform(FVector2D(ThumbCx - ThumbR + 1.0f, H * 0.5f - ThumbR + 1.0f))),
 			&ThumbBrush);
 
 		return LayerId + 3;
@@ -244,7 +280,7 @@ public:
 	}
 };
 
-/** Fluent 折叠卡片：标题行（图标 + 标题 + 右侧摘要 + 折叠箭头）+ 内容插槽 */
+/** Fluent 折叠卡片：图标 + 标题 + 右侧摘要 + 展开/收起滑入淡入动画 */
 class SKgExpanderCard : public SCompoundWidget
 {
 public:
@@ -252,6 +288,7 @@ public:
 		: _Icon()
 		, _Title()
 		, _Subtitle()
+		, _Summary()
 		, _bExpanded(false)
 		{}
 		SLATE_ARGUMENT(FText, Icon)
@@ -265,24 +302,27 @@ public:
 	void Construct(const FArguments& InArgs)
 	{
 		bExpanded = InArgs._bExpanded;
+		AnimOpen = bExpanded ? 1.0f : 0.0f;
 		IconAttr = InArgs._Icon;
 		TitleAttr = InArgs._Title;
 		SubtitleAttr = InArgs._Subtitle;
 		SummaryAttr = InArgs._Summary;
+		SetCanTick(true);
 
 		static FSlateRoundedBoxBrush CardBrush(KgPanelColor::Card, 6.0f, KgPanelColor::Stroke, 1.0f);
-		static FSlateRoundedBoxBrush CardHoverBrush(KgPanelColor::CardHover, 6.0f, KgPanelColor::Stroke, 1.0f);
+
+		TSharedRef<SBox> BodyBoxRef = SAssignNew(BodyBox, SBox)
+			.Visibility(bExpanded ? EVisibility::Visible : EVisibility::Collapsed)
+			.RenderOpacity(AnimOpen)
+			[
+				InArgs._Body.Widget
+			];
 
 		ChildSlot
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage_Lambda([]() -> const FSlateBrush*
-			{
-				// 简化：使用常驻卡片底色（hover 态略）
-				static FSlateRoundedBoxBrush B(KgPanelColor::Card, 6.0f, KgPanelColor::Stroke, 1.0f);
-				return &B;
-			})
+			.BorderImage(&CardBrush)
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()
@@ -323,31 +363,47 @@ public:
 				]
 				+ SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(SBox)
-					.Visibility_Lambda([this]() { return bExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
-					[
-						InArgs._Body.Widget
-					]
+					BodyBoxRef
 				]
 			]
 		];
+	}
+
+	virtual void Tick(const FGeometry& AllottedGeometry, float DeltaTime) override
+	{
+		const float Target = bExpanded ? 1.0f : 0.0f;
+		if (!FMath::IsNearlyEqual(AnimOpen, Target, 0.01f))
+		{
+			AnimOpen = FMath::FInterpTo(AnimOpen, Target, DeltaTime, 14.0f);
+			if (FMath::IsNearlyEqual(AnimOpen, Target, 0.01f)) { AnimOpen = Target; }
+			if (BodyBox.IsValid())
+			{
+				BodyBox->SetRenderOpacity(AnimOpen);
+				BodyBox->SetRenderTransform(FSlateRenderTransform(FVector2D(0.0f, -10.0f * (1.0f - AnimOpen))));
+			}
+			Invalidate(EInvalidateWidgetReason::Paint);
+		}
 	}
 
 private:
 	FReply HandleHeaderClicked()
 	{
 		bExpanded = !bExpanded;
+		if (BodyBox.IsValid()) { BodyBox->SetVisibility(EVisibility::Visible); }
+		Invalidate(EInvalidateWidgetReason::Paint);
 		return FReply::Handled();
 	}
 
 	bool bExpanded = false;
+	float AnimOpen = 0.0f;
+	TSharedPtr<SBox> BodyBox;
 	TAttribute<FText> IconAttr;
 	TAttribute<FText> TitleAttr;
 	TAttribute<FText> SubtitleAttr;
 	TAttribute<FText> SummaryAttr;
 };
 
-/** Fluent 选择条：互斥按钮组，选中项强调色填充 */
+/** Fluent 选择条：互斥按钮组（高对比描边/实心两态），选中即时切换 */
 class SKgSelectorBar : public SCompoundWidget
 {
 public:
@@ -365,46 +421,64 @@ public:
 	{
 		Current = InArgs._Current;
 		OnChanged = InArgs._OnChanged;
+		Options = InArgs._Options;
 
-		TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
-		const TArray<FText> Opts = InArgs._Options;
-		for (int32 I = 0; I < Opts.Num(); ++I)
+		TSharedRef<SHorizontalBox> Row = SAssignNew(RowBox, SHorizontalBox);
+		RebuildButtons(Row.Get());
+		ChildSlot[Row];
+	}
+
+	void SetCurrent(int32 InCurrent)
+	{
+		if (Current != InCurrent)
+		{
+			Current = InCurrent;
+			RebuildButtons(RowBox.Get());
+		}
+	}
+
+private:
+	void RebuildButtons(SHorizontalBox* Row)
+	{
+		Row->ClearChildren();
+		static FButtonStyle SelStyle = KgPanelStyle::Selected();
+		static FButtonStyle UnselStyle = KgPanelStyle::Unselected();
+		for (int32 I = 0; I < Options.Num(); ++I)
 		{
 			const int32 Idx = I;
 			Row->AddSlot().AutoWidth().Padding(0, 0, 6, 0)
 			[
 				SNew(SButton)
-				.OnClicked(this, &SKgSelectorBar::HandleOpt, Idx)
-				.ButtonColorAndOpacity_Lambda([this, Idx]() { return Idx == Current ? KgPanelColor::Accent : KgPanelColor::Control; })
+				.ButtonStyle(Idx == Current ? &SelStyle : &UnselStyle)
 				.ContentPadding(FMargin(11, 5))
 				[
 					SNew(STextBlock)
-					.Text(Opts[I])
+					.Text(Options[I])
 					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-					.ColorAndOpacity_Lambda([this, Idx]() { return Idx == Current ? FLinearColor::White : KgPanelColor::Text2; })
+					.ColorAndOpacity(Idx == Current ? FLinearColor::White : FLinearColor(1, 1, 1, 0.88f))
 				]
 			];
 		}
-
-		ChildSlot
-		[
-			Row
-		];
 	}
 
-	void SetCurrent(int32 InCurrent) { Current = InCurrent; }
-
-private:
 	FReply HandleOpt(int32 Idx)
 	{
-		Current = Idx;
-		if (OnChanged.IsBound())
+		if (Current != Idx)
 		{
-			OnChanged.ExecuteIfBound(Idx);
+			Current = Idx;
+			RebuildButtons(RowBox.Get());
+			if (OnChanged.IsBound())
+			{
+				OnChanged.ExecuteIfBound(Idx);
+			}
 		}
 		return FReply::Handled();
 	}
 
 	int32 Current = 0;
-	FSimpleIntDelegate OnChanged;
+	TArray<FText> Options;
+	TSharedPtr<SHorizontalBox> RowBox;
+	FOnIntDelegate OnChanged;
+
+	DECLARE_DELEGATE_OneParam(FOnIntDelegate, int32)
 };
