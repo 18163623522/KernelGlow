@@ -37,4 +37,4 @@
 | 7 | Task 5 数学单测 | `KGTests.log`：KernelGlow.KernelMath.* 6/6 成功 0 失败（ChooseLevel/KernelLod/Extent/TapUVs/Normalize/ProceduralKernel+mips） | ✅ 数值通过 |
 | 8 | Task 5 kernel 纹理 | 模块懒创建程序化 kernel（256²，CPU mip 链，AddToRoot 防 GC）；用户贴图路径优先加载 | ✅ 数值通过 |
 | 9 | Task 4 待办闭环 | 测试关卡补 3 盏平行光（中性曝光下地面可见），关卡已重建 | ✅ 已落实 || 10 | Task 6 排错记录 | ① 5.7 后处理注入改 PrePostProcessPass + FSceneTextureUniformParameters.SceneColorTexture（RealBloom 5.7 同款，AfterDOF 委托仅前 2 帧触发弃用）；② Build.cs 需显式加 Renderer/Private+Internal 包含路径；③ -ExecCmds 末位命令会被吞、分号不支持——验证开关改走 ini [SystemSettings]（launch_kg.ps1 -Mode）；④ 渲染线程禁触设置 UObject（快照缓存）与 kernel 创建（预创建） | ✅ 已落实 |
-| 11 | Task 6 中间证据 | `T6_diag_bright0add.png`（bright0 叠加=柔和光晕）、`T6_diag_deep.png`（深层叠加=鸣潮式大光晕+参照盒干净）、`T6_diag_convreplace3.png`（卷积输出=稀疏亮点，单尺度偏弱） | ✅ 视觉通过（管线贯通） |
+| 11 | Task 6 中间证据 | `T6_diag_bright0add.png`（bright0 叠加=柔和光晕）、`T6_diag_deep.png`（深层叠加=鸣潮式大光晕+参照盒干净）、`T6_diag_convreplace3.png`（卷积输出=稀疏亮点，单尺度偏弱） | ✅ 视觉通过（管线贯通） || 12 | Task 7 三尺度+核心回填 | `T7_multiscale_on.png`（清晰白核+近距青白+中距蓝+Wide 低能量，鸣潮式分层光晕）；`T7_multiscale_off.png` 基线；A/B 像素差：光晕区 diff≈136/255、蓝染生效（B>R）、**参照灰盒区 diff 0.6/255（场景锐度保持）** | ✅ 视觉通过（M2+M3 核心目标达成） |

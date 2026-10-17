@@ -110,6 +110,9 @@ float ConvTexelSizeY;
 float ConvExtentPx;
 float ConvKernelLod;
 int ConvTapCount;
+float ConvTintR;
+float ConvTintG;
+float ConvTintB;
 
 [numthreads(8, 8, 1)]
 void KgConvolveMainCS(uint3 DTid : SV_DispatchThreadID)
@@ -139,5 +142,5 @@ void KgConvolveMainCS(uint3 DTid : SV_DispatchThreadID)
 	}
 
 	acc /= max(wsum, 1e-4); // 能量归一化：kernel 越大不再额外注入能量
-	ConvOutputTexture[DTid.xy] = float4(acc, 1.0);
+	ConvOutputTexture[DTid.xy] = float4(acc * float3(ConvTintR, ConvTintG, ConvTintB), 1.0);
 }

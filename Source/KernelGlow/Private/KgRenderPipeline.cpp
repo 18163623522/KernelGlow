@@ -133,7 +133,7 @@ namespace KgRender
 
 	namespace KgRender
 	{
-		void RenderConvolve(FRDGBuilder& GraphBuilder, FRDGTextureRef LevelTexture, FRDGTextureRef KernelTexture, float ExtentPx, int32 TapCount, FRDGTextureRef& OutConvolved)
+		void RenderConvolve(FRDGBuilder& GraphBuilder, FRDGTextureRef LevelTexture, FRDGTextureRef KernelTexture, float ExtentPx, int32 TapCount, const FLinearColor& Tint, FRDGTextureRef& OutConvolved)
 		{
 			OutConvolved = nullptr;
 			if (!LevelTexture || !KernelTexture)
@@ -152,6 +152,9 @@ namespace KgRender
 			Params->ConvExtentPx = ExtentPx;
 			Params->ConvKernelLod = KgKernelMath::ComputeKernelLod(KernelTexture->Desc.Extent.X, TapCount);
 			Params->ConvTapCount = TapCount;
+			Params->ConvTintR = Tint.R;
+			Params->ConvTintG = Tint.G;
+			Params->ConvTintB = Tint.B;
 			Params->ConvInputTexture = LevelTexture;
 			Params->ConvInputSampler = KgSampler::GetRHI();
 			Params->ConvKernelTexture = KernelTexture;

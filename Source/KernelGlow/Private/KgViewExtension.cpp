@@ -32,8 +32,17 @@ void FKgViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 	Cached.Threshold = Settings->Threshold;
 	Cached.OverallIntensity = Settings->OverallIntensity;
 	Cached.Gain = Settings->Gain;
-	Cached.Scale0Radius = Settings->Scales[0].Radius;
-	Cached.Scale0Intensity = Settings->Scales[0].Intensity;
+	for (int32 S = 0; S < 3; ++S)
+	{
+		Cached.ScaleRadius[S] = Settings->Scales[S].Radius;
+		Cached.ScaleIntensity[S] = Settings->Scales[S].Intensity;
+		Cached.ScalesEnabled[S] = Settings->Scales[S].bEnabled;
+		Cached.ScaleTintR[S] = Settings->Scales[S].Tint.R;
+		Cached.ScaleTintG[S] = Settings->Scales[S].Tint.G;
+		Cached.ScaleTintB[S] = Settings->Scales[S].Tint.B;
+	}
+	Cached.CoreRadius = Settings->Core.Radius;
+	Cached.CoreStrength = Settings->Core.Strength;
 	Cached.Quality = Settings->Quality;
 
 	UTexture2D* KernelTex = FModuleManager::GetModuleChecked<FKernelGlowModule>(TEXT("KernelGlow")).GetKernelTextureForRender();
@@ -102,30 +111,6 @@ void FKgViewExtension::PrePostProcessPass_RenderThread(
 	Params.Knee = 0.5f;
 	Params.PyramidLevels = (Cached.Quality == 0) ? 3 : (Cached.Quality == 2 ? 6 : 5);
 
-	// 诊断 5：完整管线 + 常量绿（管线是否破坏渲染图）
-	if (CVarKgDebugSource.GetValueOnRenderThread() == 5)
-	{
-		TArray<FRDGTextureRef> Levels5;
-		KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels5);
-		KgRender::RenderPlaceholderPass(GraphBuilder, SceneColor);
-		return;
-	}
-
-	// 诊断 1：bright0 叠加（跳过卷积）
-	if (CVarKgDebugSource.GetValueOnRenderThread() == 1)
-	{
-		TArray<FRDGTextureRef> Levels1;
-		KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels1);
-		if (Levels1.Num() > 0)
-		{
-			KgRender::RenderDebugAdd(GraphBuilder, SceneColor, Levels1[0], 1.0f, false);
-		}
-		return;
-	}
-	Params.Threshold = Cached.Threshold;
-	Params.Knee = 0.5f;
-	Params.PyramidLevels = (Cached.Quality == 0) ? 3 : (Cached.Quality == 2 ? 6 : 5);
-
 	TArray<FRDGTextureRef> Levels;
 	KgRender::RenderGlowPipeline(GraphBuilder, SceneColor, Params, Levels);
 
@@ -136,29 +121,41 @@ void FKgViewExtension::PrePostProcessPass_RenderThread(
 	}
 
 	const float BaseWidth = (float)SceneColor->Desc.Extent.X;
-	const int32 Level = KgKernelMath::ChooseLevelForRadius(Cached.Scale0Radius, BaseWidth, TapCount, Levels.Num() - 1);
-	const float ExtentPx = KgKernelMath::ComputeExtentPx(Cached.Scale0Radius, BaseWidth, Level);
+	const float Overall = Cached.OverallIntensity * Cached.Gain;
 
-	FRDGTextureRef RdgKernel = GraphBuilder.RegisterExternalTexture(
-		CreateRenderTarget(KernelTextureRHI, TEXT("KgKernelTex")));
-
-	FRDGTextureRef Convolved;
-	KgRender::RenderConvolve(GraphBuilder, Levels[Level], RdgKernel, ExtentPx, TapCount, Convolved);
-
-	const float AddScale = Cached.OverallIntensity * Cached.Scale0Intensity * Cached.Gain;
+	// 三尺度卷积（鸣潮式：近距青白 / 中距蓝 / Wide 深蓝低能量）
 	const int32 DebugSource = CVarKgDebugSource.GetValueOnRenderThread();
-	FRDGTextureRef AddTexture = (DebugSource == 1) ? Levels[0]
-		: (DebugSource == 2) ? Levels[Levels.Num() - 1]
-		: (DebugSource == 3) ? RdgKernel
-		: Convolved;
-	const float AddScaleFinal = (DebugSource != 0) ? 1.0f : AddScale;
-	KgRender::RenderDebugAdd(GraphBuilder, SceneColor, AddTexture, AddScaleFinal,
-		CVarKgDebugReplace.GetValueOnRenderThread() != 0);
-
-	static std::atomic<int32> ConvDiag{ 0 };
-	if (ConvDiag.fetch_add(1) < 2 || ConvDiag.load() % 120 == 0)
+	for (int32 S = 0; S < 3; ++S)
 	{
-		UE_LOG(LogKernelGlow, Log, TEXT("PrePP run #%d levels=%d level=%d extent=%.1f scale=%.2f"),
-			ConvDiag.load(), Levels.Num(), Level, ExtentPx, AddScaleFinal);
+		if (!Cached.ScalesEnabled[S] || Cached.ScaleIntensity[S] <= 0.0f)
+		{
+			continue;
+		}
+		const int32 Level = KgKernelMath::ChooseLevelForRadius(Cached.ScaleRadius[S], BaseWidth, TapCount, Levels.Num() - 1);
+		const float ExtentPx = KgKernelMath::ComputeExtentPx(Cached.ScaleRadius[S], BaseWidth, Level);
+
+		FRDGTextureRef RdgKernel = GraphBuilder.RegisterExternalTexture(
+			CreateRenderTarget(KernelTextureRHI, TEXT("KgKernelTex")));
+
+		FRDGTextureRef Convolved;
+		KgRender::RenderConvolve(GraphBuilder, Levels[Level], RdgKernel, ExtentPx, TapCount,
+			FLinearColor(Cached.ScaleTintR[S], Cached.ScaleTintG[S], Cached.ScaleTintB[S], 1.0f), Convolved);
+
+		const float AddScale = Overall * Cached.ScaleIntensity[S];
+		KgRender::RenderDebugAdd(GraphBuilder, SceneColor, Convolved, AddScale,
+			CVarKgDebugReplace.GetValueOnRenderThread() != 0);
 	}
+
+	// 核心回填：Levels[0] 小核卷积（半径 3px → span 6px，4×4 tap）
+	if (Cached.CoreStrength > 0.0f && Cached.CoreRadius > 0.5f)
+	{
+		FRDGTextureRef RdgKernel = GraphBuilder.RegisterExternalTexture(
+			CreateRenderTarget(KernelTextureRHI, TEXT("KgKernelTex")));
+		FRDGTextureRef Core;
+		KgRender::RenderConvolve(GraphBuilder, Levels[0], RdgKernel, Cached.CoreRadius * 2.0f, 4,
+			FLinearColor(1, 1, 1, 1), Core);
+		KgRender::RenderDebugAdd(GraphBuilder, SceneColor, Core, Overall * Cached.CoreStrength,
+			CVarKgDebugReplace.GetValueOnRenderThread() != 0);
+	}
+
 }

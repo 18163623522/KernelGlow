@@ -22,8 +22,14 @@ public:
 		float Threshold = 1.0f;
 		float OverallIntensity = 1.0f;
 		float Gain = 1.0f;
-		float Scale0Radius = 0.06f;
-		float Scale0Intensity = 0.8f;
+		float ScaleRadius[3] = { 0.06f, 0.16f, 0.42f };
+		float ScaleIntensity[3] = { 0.8f, 0.35f, 0.0f };
+		bool ScalesEnabled[3] = { true, true, false };
+		float ScaleTintR[3] = { 0.62f, 0.44f, 0.29f };
+		float ScaleTintG[3] = { 0.85f, 0.71f, 0.49f };
+		float ScaleTintB[3] = { 1.0f, 1.0f, 1.0f };
+		float CoreRadius = 3.0f;
+		float CoreStrength = 0.6f;
 		int32 Quality = 1;
 	};
 

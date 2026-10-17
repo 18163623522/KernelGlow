@@ -21,8 +21,8 @@ namespace KgRender
 	 */
 		void RenderGlowPipeline(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, const FGlowParams& Params, TArray<FRDGTextureRef>& OutLevels);
 
-	/** 在指定层级上做单尺度卷积，返回同尺寸卷积结果 */
-	void RenderConvolve(FRDGBuilder& GraphBuilder, FRDGTextureRef LevelTexture, FRDGTextureRef KernelTexture, float ExtentPx, int32 TapCount, FRDGTextureRef& OutConvolved);
+	/** 在指定层级上做单尺度卷积（含染色），返回同尺寸卷积结果 */
+	void RenderConvolve(FRDGBuilder& GraphBuilder, FRDGTextureRef LevelTexture, FRDGTextureRef KernelTexture, float ExtentPx, int32 TapCount, const FLinearColor& Tint, FRDGTextureRef& OutConvolved);
 
 	/** Task 3 placeholder：原地常量绿写入（回归验证用） */
 	void RenderPlaceholderPass(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor);
