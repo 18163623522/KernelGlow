@@ -154,7 +154,6 @@ UTexture2D* FKernelGlowModule::GetOrCreateKernelTexture()
 		return nullptr;
 	}
 	Tex->NeverStream = true;
-	Tex->MipGenSettings = TMGS_NoMipmaps;
 
 	FTexturePlatformData* PlatformData = Tex->GetPlatformData();
 	PlatformData->Mips.Reset();

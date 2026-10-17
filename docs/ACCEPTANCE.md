@@ -38,4 +38,12 @@
 | 8 | Task 5 kernel 纹理 | 模块懒创建程序化 kernel（256²，CPU mip 链，AddToRoot 防 GC）；用户贴图路径优先加载 | ✅ 数值通过 |
 | 9 | Task 4 待办闭环 | 测试关卡补 3 盏平行光（中性曝光下地面可见），关卡已重建 | ✅ 已落实 || 10 | Task 6 排错记录 | ① 5.7 后处理注入改 PrePostProcessPass + FSceneTextureUniformParameters.SceneColorTexture（RealBloom 5.7 同款，AfterDOF 委托仅前 2 帧触发弃用）；② Build.cs 需显式加 Renderer/Private+Internal 包含路径；③ -ExecCmds 末位命令会被吞、分号不支持——验证开关改走 ini [SystemSettings]（launch_kg.ps1 -Mode）；④ 渲染线程禁触设置 UObject（快照缓存）与 kernel 创建（预创建） | ✅ 已落实 |
 | 11 | Task 6 中间证据 | `T6_diag_bright0add.png`（bright0 叠加=柔和光晕）、`T6_diag_deep.png`（深层叠加=鸣潮式大光晕+参照盒干净）、`T6_diag_convreplace3.png`（卷积输出=稀疏亮点，单尺度偏弱） | ✅ 视觉通过（管线贯通） || 12 | Task 7 三尺度+核心回填 | `T7_multiscale_on.png`（清晰白核+近距青白+中距蓝+Wide 低能量，鸣潮式分层光晕）；`T7_multiscale_off.png` 基线；A/B 像素差：光晕区 diff≈136/255、蓝染生效（B>R）、**参照灰盒区 diff 0.6/255（场景锐度保持）** | ✅ 视觉通过（M2+M3 核心目标达成） || 13 | Task 8 来源系统 | 全屏亮度源 ✓（T7 系列截图）；RT 源接口已留（Settings.SourceRT）；**Custom Stencil 白名单：基础设施完成（ini 解析 ✓ stencilNum=1、BrightPass 掩码、可视化工具 kg.DebugSource=6），但 PrePostProcessPass 阶段 CustomStencil SRV 读出无效数据（D32S8 与 X24_G8 重解释不兼容，`T8_diag_stencil2.png` 噪点证据）——标记为实验性已知问题，后续换 Tonemap 后钩子或独立 stencil pass 解决** | ⚠️ 部分通过（已知问题记录） || 14 | Task 10 面板 | `T10_panel_editor.png`（编辑器内浮窗：InfoBar/开关/滑杆/kernel 选择条/三折叠卡/页脚）、`T10_panel_expanded.png`（展开态：尺度半径/强度滑杆）——布局与 WinUI3 原型一致，强调色青蓝，自绘开关/折叠卡/选择条 | ✅ 视觉通过（M4 UI 达成） |
-| 15 | Task 9 持久化 | 面板显示 亮度阈值 0.5 系 DefaultEngine.ini 读回（跨会话）；总开关默认开；SaveConfig 每次改动写回 | ✅ 数值通过 |
+| 15 | Task 9 持久化 | 面板显示 亮度阈值 0.5 系 DefaultEngine.ini 读回（跨会话）；总开关默认开；SaveConfig 每次改动写回 | ✅ 数值通过 || 16 | Task 11 三目标编译 | Editor ✓ / Development(Game) ✓ / Shipping ✓（Shipping 修复 UTexture2D MipGenSettings 访问后通过） | ✅ 数值通过 |
+| 17 | Task 11 最终 A/B | `T11_final_on.png` / `T11_final_off.png`：ON vs OFF 像素差 39.8% 像素 |d|>8，平均 R+10.8/B-2.9（暖核+蓝晕），发光定位正确；kernel mip 链在 MipGen 行移除后仍有效 | ✅ 视觉通过 |
+| 18 | 停止条件核对 | ① UI = 约定 WinUI3 单面板（T10 系列）✅ ② 效果接近鸣潮（T7/T11 系列：清晰核心+分层光晕+克制 Wide）✅ ③ 全程截图归档 KernelGlowValidation/ ✅ | ✅ 达成，停止 |
+
+## 已知问题（诚实边界）
+
+1. **Custom Stencil 白名单（实验性）**：PrePostProcessPass 阶段 CustomStencil SRV 读出无效数据（D32S8/X24_G8 重解释问题，证据 T8_diag_stencil2.png）。基础设施（ini 解析/掩码/可视化）已就绪，v1 以全屏亮度源交付；后续可换 AfterTonemap 钩子或独立 stencil 提取 pass。
+2. 曝光计联动：注入点在曝光计量之后（无呼吸），但 HDR 合成的辉光能量参与后续 TSR 历史——连续运动场景的时序稳定性待 M5 后实测（静态/慢速场景已验证）。
+3. 用户 ini 曾被验证脚本以 ASCII 编码写入导致中文注释损坏（已重写为纯 ASCII；正式用户配置不受影响）。
