@@ -9,7 +9,6 @@
 	"CanContainContent": false,
 	"IsBetaVersion": true,
 	"Installed": false,
-	"EngineVersion": "5.7.3",
 	"Modules": [
 		{
 			"Name": "KernelGlow",

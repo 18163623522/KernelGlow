@@ -1,0 +1,21 @@
+// KernelGlow placeholder pass（Task 3 管线打通验证用，Task 4 起替换为真实管线）
+// 原地对 scene color 做可辨识 tint，证明注入点与 UAV 写回链路可用。
+
+#include "/Engine/Public/Platform.ush"
+
+RWTexture2D<float4> SceneColorUAV;
+
+[numthreads(8, 8, 1)]
+void KgPlaceholderMainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint2 Size;
+	SceneColorUAV.GetDimensions(Size.x, Size.y);
+	if (DispatchThreadId.x >= Size.x || DispatchThreadId.y >= Size.y)
+	{
+		return;
+	}
+
+	float4 Color = SceneColorUAV[DispatchThreadId.xy];
+	Color = float4(0.0, 1.0, 0.0, 1.0); // 验证用：整屏纯绿，排除曝光补偿干扰
+	SceneColorUAV[DispatchThreadId.xy] = Color;
+}
