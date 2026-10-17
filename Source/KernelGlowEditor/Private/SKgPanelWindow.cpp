@@ -60,9 +60,9 @@ namespace
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.0f).VAlign(VAlign_Center)
 			[
-				SNew(SSlider)
-				.MinValue(Min).MaxValue(Max).Value(Value)
-				.OnValueChanged_Lambda([OnChanged](float V)
+				SNew(SKgAccentSlider)
+				.Min(Min).Max(Max).Value(Value)
+				.OnChanged_Lambda([OnChanged](float V)
 				{
 					if (OnChanged.IsBound()) { OnChanged.ExecuteIfBound(V); }
 				})
@@ -111,6 +111,10 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot().AutoHeight().Padding(14, 11)
 		[
 			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0, 0, 10, 0)
+			[
+				SNew(SKgIconBadge).Char(Str(TEXT("启")))
+			]
 			+ SHorizontalBox::Slot().FillWidth(1.0f)
 			[
 				SNew(SVerticalBox)
@@ -319,8 +323,10 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
 			[
 				SNew(SKgExpanderCard)
+				.Icon(Str(TEXT("形")))
 				.Title(Str(TEXT("光晕形状")))
 				.Subtitle(Str(TEXT("三层尺度 + 核心回填")))
+				.Summary(Str(TEXT("3 层 · 回填开")))
 				.Body()
 				[
 					ShapeBody
@@ -329,8 +335,10 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
 			[
 				SNew(SKgExpanderCard)
+				.Icon(Str(TEXT("源")))
 				.Title(Str(TEXT("来源")))
 				.Subtitle(Str(TEXT("只有标记的高光参与卷积")))
+				.Summary(FText::FromString(S->bUseFullScreenLuminance ? TEXT("亮度源") : TEXT("白名单")))
 				.Body()
 				[
 					SourcesBody
@@ -339,8 +347,10 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
 			[
 				SNew(SKgExpanderCard)
+				.Icon(Str(TEXT("高")))
 				.Title(Str(TEXT("高级")))
 				.Subtitle(Str(TEXT("合成 · 调试 · 性能")))
+				.Summary(Str(TEXT("HDR · 高")))
 				.Body()
 				[
 					AdvancedBody

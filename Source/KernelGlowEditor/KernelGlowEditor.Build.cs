@@ -20,6 +20,7 @@ public class KernelGlowEditor : ModuleRules
 			"ToolMenus",
 			"Slate",
 			"SlateCore",
+				"InputCore",
 			"EditorStyle",
 			"Projects",
 				"WorkspaceMenuStructure"

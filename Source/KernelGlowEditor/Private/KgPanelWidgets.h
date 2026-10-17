@@ -95,17 +95,169 @@ private:
 	FSimpleDelegate OnToggle;
 };
 
-/** Fluent 折叠卡片：标题行（可点击展开/收起）+ 内容插槽 */
+
+/** WinUI3 风格滑杆：强调色已填充轨道 + 圆形滑块（自绘，替代引擎默认 SSlider 外观） */
+class SKgAccentSlider : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SKgAccentSlider)
+		: _Min(0.f), _Max(1.f), _Value(0.5f), _OnChanged()
+		{}
+		SLATE_ARGUMENT(float, Min)
+		SLATE_ARGUMENT(float, Max)
+		SLATE_ARGUMENT(float, Value)
+		SLATE_EVENT(FOnFloatValueChanged, OnChanged)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		Min = InArgs._Min;
+		Max = FMath::Max(InArgs._Max, InArgs._Min + 0.0001f);
+		Value = FMath::Clamp(InArgs._Value, Min, Max);
+		OnChanged = InArgs._OnChanged;
+	}
+
+	virtual FVector2D ComputeDesiredSize(float) const override
+	{
+		return FVector2D(220, 20);
+	}
+
+	float Fraction() const
+	{
+		return FMath::Clamp((Value - Min) / (Max - Min), 0.0f, 1.0f);
+	}
+
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
+		const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
+		int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+	{
+		const float W = AllottedGeometry.GetLocalSize().X;
+		const float H = AllottedGeometry.GetLocalSize().Y;
+		const float TrackY = H * 0.5f - 2.0f;
+		const float Frac = Fraction();
+
+		const FSlateRoundedBoxBrush TrackBrush(KgPanelColor::Track, 2.0f);
+		FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+			AllottedGeometry.ToPaintGeometry(FVector2D(W, 4.0f), FSlateLayoutTransform(FVector2D(0, TrackY))),
+			&TrackBrush);
+
+		if (Frac > 0.001f)
+		{
+			const FSlateRoundedBoxBrush FillBrush(KgPanelColor::Accent, 2.0f);
+			FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 1,
+				AllottedGeometry.ToPaintGeometry(FVector2D(FMath::Max(W * Frac, 4.0f), 4.0f), FSlateLayoutTransform(FVector2D(0, TrackY))),
+				&FillBrush);
+		}
+
+		const float ThumbCx = W * Frac;
+		const FSlateRoundedBoxBrush ThumbRing(FLinearColor::White, 9.0f);
+		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 2,
+			AllottedGeometry.ToPaintGeometry(FVector2D(18, 18), FSlateLayoutTransform(FVector2D(ThumbCx - 9, TrackY - 7))),
+			&ThumbRing);
+		const FSlateRoundedBoxBrush ThumbBrush(KgPanelColor::Accent, 8.0f);
+		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 3,
+			AllottedGeometry.ToPaintGeometry(FVector2D(16, 16), FSlateLayoutTransform(FVector2D(ThumbCx - 8, TrackY - 6))),
+			&ThumbBrush);
+
+		return LayerId + 3;
+	}
+
+protected:
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+		{
+			return FReply::Unhandled();
+		}
+		bDragging = true;
+		return SetValueFromGeometry(MyGeometry, MouseEvent.GetScreenSpacePosition());
+	}
+
+	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (bDragging && MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+		{
+			return SetValueFromGeometry(MyGeometry, MouseEvent.GetScreenSpacePosition());
+		}
+		return FReply::Unhandled();
+	}
+
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		bDragging = false;
+		return FReply::Handled();
+	}
+
+private:
+	FReply SetValueFromGeometry(const FGeometry& G, const FVector2D& ScreenPos)
+	{
+		const FVector2D Local = G.AbsoluteToLocal(ScreenPos);
+		const float W = FMath::Max(G.GetLocalSize().X, 1.0f);
+		const float Frac = FMath::Clamp(Local.X / W, 0.0f, 1.0f);
+		const float NewValue = Min + Frac * (Max - Min);
+		if (!FMath::IsNearlyEqual(NewValue, Value, (Max - Min) / 500.0f))
+		{
+			Value = NewValue;
+			if (OnChanged.IsBound())
+			{
+				OnChanged.Execute(Value);
+			}
+		}
+		return FReply::Handled();
+	}
+
+	float Min = 0.0f;
+	float Max = 1.0f;
+	float Value = 0.5f;
+	bool bDragging = false;
+	FOnFloatValueChanged OnChanged;
+};
+
+/** 卡片头图标：强调色圆角方块 + 单字 */
+class SKgIconBadge : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SKgIconBadge) : _Char(FText::FromString(TEXT("启"))) {}
+		SLATE_ARGUMENT(FText, Char)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		ChildSlot
+		[
+			SNew(SBox).WidthOverride(22).HeightOverride(22)
+			[
+				SNew(SBorder)
+				.Padding(FMargin(0))
+				.BorderImage_Lambda([]() { static FSlateRoundedBoxBrush B(KgPanelColor::Accent, 5.0f); return &B; })
+				[
+					SNew(SBox).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(InArgs._Char)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+						.ColorAndOpacity(FLinearColor::White)
+					]
+				]
+			]
+		];
+	}
+};
+
+/** Fluent 折叠卡片：标题行（图标 + 标题 + 右侧摘要 + 折叠箭头）+ 内容插槽 */
 class SKgExpanderCard : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SKgExpanderCard)
-		: _Title()
+		: _Icon()
+		, _Title()
 		, _Subtitle()
 		, _bExpanded(false)
 		{}
+		SLATE_ARGUMENT(FText, Icon)
 		SLATE_ATTRIBUTE(FText, Title)
 		SLATE_ATTRIBUTE(FText, Subtitle)
+		SLATE_ATTRIBUTE(FText, Summary)
 		SLATE_ARGUMENT(bool, bExpanded)
 		SLATE_DEFAULT_SLOT(FArguments, Body)
 	SLATE_END_ARGS()
@@ -113,8 +265,10 @@ public:
 	void Construct(const FArguments& InArgs)
 	{
 		bExpanded = InArgs._bExpanded;
+		IconAttr = InArgs._Icon;
 		TitleAttr = InArgs._Title;
 		SubtitleAttr = InArgs._Subtitle;
+		SummaryAttr = InArgs._Summary;
 
 		static FSlateRoundedBoxBrush CardBrush(KgPanelColor::Card, 6.0f, KgPanelColor::Stroke, 1.0f);
 		static FSlateRoundedBoxBrush CardHoverBrush(KgPanelColor::CardHover, 6.0f, KgPanelColor::Stroke, 1.0f);
@@ -139,7 +293,11 @@ public:
 					.OnClicked(this, &SKgExpanderCard::HandleHeaderClicked)
 					[
 						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot().FillWidth(1.0f)
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top)
+						[
+							SNew(SKgIconBadge).Char(IconAttr.Get())
+						]
+						+ SHorizontalBox::Slot().FillWidth(1.0f).Padding(10, 0, 0, 0)
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot().AutoHeight()
@@ -150,6 +308,10 @@ public:
 							[
 								SNew(STextBlock).Text(SubtitleAttr).Font(FCoreStyle::GetDefaultFontStyle("Regular", 9)).ColorAndOpacity(KgPanelColor::Text2)
 							]
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+						[
+							SNew(STextBlock).Text(SummaryAttr).Font(FCoreStyle::GetDefaultFontStyle("Regular", 9)).ColorAndOpacity(KgPanelColor::Text3)
 						]
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 						[
@@ -179,8 +341,10 @@ private:
 	}
 
 	bool bExpanded = false;
+	TAttribute<FText> IconAttr;
 	TAttribute<FText> TitleAttr;
 	TAttribute<FText> SubtitleAttr;
+	TAttribute<FText> SummaryAttr;
 };
 
 /** Fluent 选择条：互斥按钮组，选中项强调色填充 */
