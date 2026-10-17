@@ -34,3 +34,6 @@
 | 4 | Task 4 测试关卡 | `/Game/Maps/TestGlowMap`：5 发光体(强度2/5/10/20/50，前2个Stencil=1) + 灰盒参照 + 唯一出生点；构建脚本 `Saved/KernelGlowValidation/build_test_level.py` | ✅ 数值通过 |
 | 5 | Task 4 BrightPass+金字塔 | `T4_brightpass_glow.png`：发光球体带柔和光晕，参照灰盒完全干净（阈值选择性生效） | ✅ 视觉通过 |
 | 6 | Task 4 待办 | 地面过暗（中性曝光下默认光强不足），Task 5 前补 3 盏平行光改善场景可见度 | ⚠️ 记录在案 |
+| 7 | Task 5 数学单测 | `KGTests.log`：KernelGlow.KernelMath.* 6/6 成功 0 失败（ChooseLevel/KernelLod/Extent/TapUVs/Normalize/ProceduralKernel+mips） | ✅ 数值通过 |
+| 8 | Task 5 kernel 纹理 | 模块懒创建程序化 kernel（256²，CPU mip 链，AddToRoot 防 GC）；用户贴图路径优先加载 | ✅ 数值通过 |
+| 9 | Task 4 待办闭环 | 测试关卡补 3 盏平行光（中性曝光下地面可见），关卡已重建 | ✅ 已落实 |
