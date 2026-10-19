@@ -102,6 +102,14 @@ void FKgViewExtension::PrePostProcessPass_RenderThread(
 	{
 		return;
 	}
+	static std::atomic<int32> FdDiag{ 0 };
+	if (FdDiag.fetch_add(1) < 2)
+	{
+		UE_LOG(LogKernelGlow, Log, TEXT("PrePP diag: fd=%d bEnabled=%d"),
+			CVarKgForceDisable.GetValueOnRenderThread(),
+			Cached.bEnabled ? 1 : 0);
+	}
+
 	if (!ShouldProcessView_RenderThread(View))
 	{
 		return;
