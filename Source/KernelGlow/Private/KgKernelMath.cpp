@@ -80,7 +80,10 @@ namespace KgKernelMath
 					Mask = 1.0f - FMath::SmoothStep(Radius - 0.03f, Radius + 0.03f, R);
 				}
 
-				const float V = Mask;
+				// 自然光散布：形状掩码 × 高斯衰减（中心亮斑 + 平滑边缘）
+				const float Gauss = FMath::Exp(-R * R * 5.5f);
+				const float Hotspot = 1.0f + 1.6f * FMath::Exp(-R * R * 55.0f);
+				const float V = Mask * Gauss * Hotspot;
 				OutPixels[Y * N + X] = FLinearColor(V, V, V, 1.0f);
 			}
 		}

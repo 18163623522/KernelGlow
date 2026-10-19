@@ -11,6 +11,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/EngineVersionComparison.h"
 #include "TimerManager.h"
+#include "SKgPanelWindow.h"
+#include "Widgets/SWindow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Engine/Engine.h"
 
 static TAutoConsoleVariable<int32> CVarKgAutoOpenPanel(
@@ -48,9 +51,9 @@ void FKernelGlowEditorModule::StartupModule()
 	UE_LOG(LogKernelGlowEditor, Log, TEXT("KernelGlowEditor module loaded (Window -> KernelGlow)."));
 
 	// 验收：kg.AutoOpenPanel=1 时延迟自动打开面板
-	FCoreDelegates::OnPostEngineInit.AddLambda([]()
+	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float)
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float)
 		{
 			static int32 Attempts = 0;
 			++Attempts;
@@ -64,8 +67,15 @@ void FKernelGlowEditorModule::StartupModule()
 			}
 			if (GEditor)
 			{
-				FGlobalTabmanager::Get()->TryInvokeTab(KernelGlowTabName);
-				UE_LOG(LogKernelGlowEditor, Log, TEXT("KernelGlow panel auto-opened."));
+				// 验收路径：独立浮动窗口（保证可见可截）；正式入口仍是菜单里的 nomad tab
+				PanelWindow = SNew(SWindow)
+					.Title(FText::FromString(TEXT("KernelGlow")))
+					.ClientSize(FVector2D(680, 780))
+					[
+						SNew(SKgPanelWindow)
+					];
+				FSlateApplication::Get().AddWindow(PanelWindow.ToSharedRef(), true);
+				UE_LOG(LogKernelGlowEditor, Log, TEXT("KernelGlow panel auto-opened (floating)."));
 				return false;
 			}
 			return Attempts < 100;

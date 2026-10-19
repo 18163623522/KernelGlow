@@ -126,7 +126,7 @@ namespace KgRender
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("KgPlaceholder"), Shader, Params, GroupCount);
 	}
 
-	void RenderDebugAdd(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef BrightTexture, float Scale, bool bReplace)
+	void RenderDebugAdd(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef BrightTexture, float Scale, bool bReplace, float Chroma)
 	{
 		if (!SceneColor || !BrightTexture)
 		{
@@ -139,6 +139,7 @@ namespace KgRender
 		Params->AddSizeY = BrightTexture->Desc.Extent.Y;
 		Params->AddScale = Scale;
 		Params->AddReplace = bReplace ? 1.0f : 0.0f;
+		Params->AddChroma = Chroma;
 		Params->AddTexture = BrightTexture;
 		Params->AddSampler = KgSampler::GetRHI();
 		Params->SceneColorUAV = GraphBuilder.CreateUAV(SceneColor);

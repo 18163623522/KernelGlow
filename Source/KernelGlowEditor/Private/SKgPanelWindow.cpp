@@ -180,7 +180,7 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 				SNew(SKgSelectorBar)
 				.Options({ Str(TEXT("圆盘")), Str(TEXT("六边形")), Str(TEXT("星芒")) })
 				.Current(S->ProceduralKernel)
-				.OnChanged(FSimpleIntDelegate::CreateLambda([S](int32 Idx)
+				.OnChanged(FOnIntDelegate::CreateLambda([S](int32 Idx)
 				{
 					S->ProceduralKernel = Idx;
 					S->SaveConfig();
@@ -283,7 +283,7 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 				SAssignNew(QualitySelector, SKgSelectorBar)
 				.Options({ Str(TEXT("低")), Str(TEXT("高")), Str(TEXT("电影级")) })
 				.Current(S->Quality)
-				.OnChanged(FSimpleIntDelegate::CreateLambda([S](int32 Idx)
+				.OnChanged(FOnIntDelegate::CreateLambda([S](int32 Idx)
 				{
 					S->Quality = Idx;
 					S->SaveConfig();

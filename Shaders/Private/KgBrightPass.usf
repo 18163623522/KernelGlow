@@ -121,6 +121,7 @@ float AddSizeX;
 float AddSizeY;
 float AddScale;
 float AddReplace;
+float AddChroma;
 
 [numthreads(8, 8, 1)]
 void KgDebugAddMainCS(uint3 DTid : SV_DispatchThreadID)
@@ -131,9 +132,22 @@ void KgDebugAddMainCS(uint3 DTid : SV_DispatchThreadID)
 	{
 		return;
 	}
-	float3 b = AddTexture.SampleLevel(AddSampler, (DTid.xy + 0.5) / float2(AddSizeX, AddSizeY), 0).rgb;
+	float2 AddUv = (DTid.xy + 0.5) / float2(AddSizeX, AddSizeY);
+
+	// 轻度径向色散：RGB 三通道以微小比例差采样（自然辉光的边缘色散）
+	float2 Radial = (AddUv - 0.5) * AddChroma;
+	float3 b;
+	b.r = AddTexture.SampleLevel(AddSampler, AddUv + Radial, 0).r;
+	b.g = AddTexture.SampleLevel(AddSampler, AddUv, 0).g;
+	b.b = AddTexture.SampleLevel(AddSampler, AddUv - Radial, 0).b;
+
 	float3 c = SceneColorUAV[DTid.xy].rgb;
 	float3 result = (AddReplace > 0.5) ? (b * AddScale) : (c + b * AddScale);
+
+	// 抖动：消除暗部/Wide 层色带
+	float Dither = frac(sin(dot(DTid.xy, float2(12.9898, 78.233))) * 43758.5453);
+	result += (Dither - 0.5) / 255.0;
+
 	SceneColorUAV[DTid.xy] = float4(result, 1.0);
 }
 

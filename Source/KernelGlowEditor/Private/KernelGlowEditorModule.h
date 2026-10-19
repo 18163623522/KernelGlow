@@ -15,4 +15,6 @@ private:
 	TSharedRef<class SDockTab> OnSpawnKernelGlowTab(const class FSpawnTabArgs& SpawnTabArgs);
 	void RegisterTabSpawner();
 	void UnregisterTabSpawner();
+
+	TSharedPtr<class SWindow> PanelWindow;
 };

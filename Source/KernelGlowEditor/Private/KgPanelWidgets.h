@@ -12,6 +12,8 @@
  */
 
 // 强调色（青蓝，与 UI 原型一致）
+DECLARE_DELEGATE_OneParam(FOnIntDelegate, int32)
+
 namespace KgPanelColor
 {
 	static const FLinearColor Accent = FLinearColor(0.059f, 0.655f, 0.902f);           // #0FA7E6
@@ -82,7 +84,7 @@ public:
 		return FVector2D(40, 20);
 	}
 
-	virtual void Tick(const FGeometry& AllottedGeometry, float DeltaTime) override
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float DeltaTime) override
 	{
 		const float Target = bIsOn ? 1.0f : 0.0f;
 		if (!FMath::IsNearlyEqual(Anim, Target, 0.005f))
@@ -170,7 +172,7 @@ public:
 		const float TrackY = H * 0.5f - 2.0f;
 		const float Frac = Fraction();
 
-		const FSlateRoundedBoxBrush TrackBrush(KgPanelColor::Track, 2.0f);
+		const FSlateRoundedBoxBrush TrackBrush(KgPanelColor::TrackOff, 2.0f);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 			AllottedGeometry.ToPaintGeometry(FVector2D(W, 4.0f), FSlateLayoutTransform(FVector2D(0, TrackY))),
 			&TrackBrush);
@@ -369,7 +371,7 @@ public:
 		];
 	}
 
-	virtual void Tick(const FGeometry& AllottedGeometry, float DeltaTime) override
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float DeltaTime) override
 	{
 		const float Target = bExpanded ? 1.0f : 0.0f;
 		if (!FMath::IsNearlyEqual(AnimOpen, Target, 0.01f))
@@ -414,7 +416,7 @@ public:
 		{}
 		SLATE_ARGUMENT(TArray<FText>, Options)
 		SLATE_ARGUMENT(int32, Current)
-		SLATE_EVENT(FSimpleIntDelegate, OnChanged)
+		SLATE_EVENT(FOnIntDelegate, OnChanged)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
@@ -423,8 +425,9 @@ public:
 		OnChanged = InArgs._OnChanged;
 		Options = InArgs._Options;
 
-		TSharedRef<SHorizontalBox> Row = SAssignNew(RowBox, SHorizontalBox);
-		RebuildButtons(Row.Get());
+		TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+		RowBox = Row;
+		RebuildButtons(&Row.Get());
 		ChildSlot[Row];
 	}
 
@@ -433,7 +436,7 @@ public:
 		if (Current != InCurrent)
 		{
 			Current = InCurrent;
-			RebuildButtons(RowBox.Get());
+			RebuildButtons(&RowBox.ToSharedRef().Get());
 		}
 	}
 
@@ -466,7 +469,7 @@ private:
 		if (Current != Idx)
 		{
 			Current = Idx;
-			RebuildButtons(RowBox.Get());
+			RebuildButtons(&RowBox.ToSharedRef().Get());
 			if (OnChanged.IsBound())
 			{
 				OnChanged.ExecuteIfBound(Idx);
@@ -480,5 +483,4 @@ private:
 	TSharedPtr<SHorizontalBox> RowBox;
 	FOnIntDelegate OnChanged;
 
-	DECLARE_DELEGATE_OneParam(FOnIntDelegate, int32)
-};
+	};

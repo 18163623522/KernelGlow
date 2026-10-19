@@ -40,5 +40,5 @@ namespace KgRender
 	void RenderStencilDebug(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureSRVRef StencilSRV);
 
 	/** 合成：scene += tex * Scale（双线性上采样，Task 6 起为正式合成路径） */
-	void RenderDebugAdd(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef BrightTexture, float Scale, bool bReplace = false);
+	void RenderDebugAdd(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef BrightTexture, float Scale, bool bReplace = false, float Chroma = 0.0f);
 }

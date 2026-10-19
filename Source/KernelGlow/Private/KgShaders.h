@@ -108,6 +108,7 @@ public:
 		SHADER_PARAMETER(float, AddSizeY)
 		SHADER_PARAMETER(float, AddScale)
 		SHADER_PARAMETER(float, AddReplace)
+		SHADER_PARAMETER(float, AddChroma)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AddTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, AddSampler)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SceneColorUAV)
