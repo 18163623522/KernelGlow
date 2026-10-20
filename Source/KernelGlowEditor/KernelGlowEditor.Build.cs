@@ -23,7 +23,8 @@ public class KernelGlowEditor : ModuleRules
 				"InputCore",
 			"EditorStyle",
 			"Projects",
-				"WorkspaceMenuStructure"
+				"WorkspaceMenuStructure",
+				"DesktopPlatform"
 		});
 	}
 }

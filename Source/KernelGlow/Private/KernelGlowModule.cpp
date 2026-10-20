@@ -111,6 +111,15 @@ bool FKernelGlowModule::AutoScreenshotTick(float DeltaTime)
 	return false; // 完成即停
 }
 
+void FKernelGlowModule::InvalidateKernelTexture()
+{
+	if (KernelTextureInternal)
+	{
+		KernelTextureInternal->RemoveFromRoot();
+		KernelTextureInternal = nullptr;
+	}
+}
+
 void FKernelGlowModule::ShutdownModule()
 {
 	// 引擎关机阶段 UObject 数组已部分失效，不做 RemoveFromRoot（根引用随进程销毁）

@@ -16,6 +16,9 @@ public:
 	/** kernel 贴图（用户贴图优先，否则程序化圆盘/六边形/星芒），带 CPU mip 链。仅游戏线程调用 */
 	UTexture2D* GetOrCreateKernelTexture();
 
+	/** 使内核缓存失效（改贴图路径后调用，下次 GetOrCreate 重新加载） */
+	void InvalidateKernelTexture();
+
 	/** 渲染线程只读访问（不得创建） */
 	UTexture2D* GetKernelTextureForRender() const { return KernelTextureInternal; }
 

@@ -6,6 +6,9 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Styling/AppStyle.h"
+#include "DesktopPlatform.h"
+#include "DesktopPlatformModule.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "KernelGlowPanel"
 
@@ -171,7 +174,24 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 				.Text(Str(TEXT("选择贴图…")))
 				.OnClicked_Lambda([S]()
 				{
-					// v1：贴图浏览对话框接入留待编辑器资产工具；当前仅提示
+					IDesktopPlatform* Platform = FDesktopPlatformModule::Get();
+					void* ParentHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+					if (Platform && ParentHandle)
+					{
+						TArray<FString> OutFiles;
+						if (Platform->OpenFileDialog(
+							ParentHandle,
+							TEXT("选择 Kernel 贴图"),
+							FPaths::ProjectContentDir(),
+							TEXT(""),
+							TEXT("贴图文件 (*.png;*.tga;*.exr)|*.png;*.tga;*.exr|全部文件 (*.*)|*.*"),
+							EFileDialogFlags::None,
+							OutFiles) && OutFiles.Num() > 0)
+						{
+							S->KernelTexturePath = FSoftObjectPath(FPackageName::CreateShortName(OutFiles[0]));
+							S->SaveConfig();
+						}
+					}
 					return FReply::Handled();
 				})
 			]
@@ -271,7 +291,16 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 	// ---- 高级（折叠）----
 	TSharedPtr<SKgSelectorBar> QualitySelector;
 	TSharedRef<SVerticalBox> AdvancedBody = SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight().Padding(14, 8, 14, 8)
+		+ SVerticalBox::Slot().AutoHeight().Padding(14, 4, 14, 8)
+		[
+			MakeToggleRow(Str(TEXT("HDR 合成（Tonemap 前）")), S->bCompositeHDR,
+				FSimpleDelegate::CreateLambda([S]()
+				{
+					S->bCompositeHDR = !S->bCompositeHDR;
+					S->SaveConfig();
+				}))
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(14, 2, 14, 8)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().FillWidth(1.0f).VAlign(VAlign_Center)
