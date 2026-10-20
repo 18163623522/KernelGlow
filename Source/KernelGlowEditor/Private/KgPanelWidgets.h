@@ -99,15 +99,16 @@ public:
 		const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
 		int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
-		// 轨道颜色随动画渐变（关=高对比灰轨，开=强调色）
-		const FLinearColor TrackCol = FMath::Lerp(KgPanelColor::TrackOff, KgPanelColor::Accent, Anim);
-		const FSlateRoundedBoxBrush TrackBrush(TrackCol, 10.0f);
+		// 颜色烘焙进 static brush（临时 brush 延迟绘制时会析构变白）；动画只动滑块位置
+		static FSlateRoundedBoxBrush TrackOn(KgPanelColor::Accent, 10.0f);
+		static FSlateRoundedBoxBrush TrackOff(KgPanelColor::TrackOff, 10.0f);
+		const FSlateBrush* Track = (Anim >= 0.5f) ? static_cast<const FSlateBrush*>(&TrackOn) : static_cast<const FSlateBrush*>(&TrackOff);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 			AllottedGeometry.ToPaintGeometry(FVector2D(40, 20), FSlateLayoutTransform()),
-			&TrackBrush);
+			Track);
 
 		const float KnobX = FMath::Lerp(3.0f, 23.0f, Anim);
-		const FSlateRoundedBoxBrush KnobBrush(FMath::Lerp(KgPanelColor::Text2, FLinearColor::White, Anim), 6.0f);
+		static FSlateRoundedBoxBrush KnobBrush(FLinearColor::White, 6.0f);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 1,
 			AllottedGeometry.ToPaintGeometry(FVector2D(12, 12), FSlateLayoutTransform(FVector2D(KnobX, 3.0f))),
 			&KnobBrush);
@@ -172,14 +173,16 @@ public:
 		const float TrackY = H * 0.5f - 2.0f;
 		const float Frac = Fraction();
 
-		const FSlateRoundedBoxBrush TrackBrush(KgPanelColor::TrackOff, 2.0f);
+		static FSlateRoundedBoxBrush TrackBrush(FLinearColor::White, 2.0f);
+		TrackBrush.TintColor = FSlateColor(KgPanelColor::TrackOff);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 			AllottedGeometry.ToPaintGeometry(FVector2D(W, 4.0f), FSlateLayoutTransform(FVector2D(0, TrackY))),
 			&TrackBrush);
 
 		if (Frac > 0.001f)
 		{
-			const FSlateRoundedBoxBrush FillBrush(KgPanelColor::Accent, 2.0f);
+			static FSlateRoundedBoxBrush FillBrush(FLinearColor::White, 2.0f);
+			FillBrush.TintColor = FSlateColor(KgPanelColor::Accent);
 			FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 1,
 				AllottedGeometry.ToPaintGeometry(FVector2D(FMath::Max(W * Frac, 4.0f), 4.0f), FSlateLayoutTransform(FVector2D(0, TrackY))),
 				&FillBrush);
@@ -188,11 +191,12 @@ public:
 		const bool bHover = IsHovered() || bDragging;
 		const float ThumbR = bHover ? 9.0f : 7.0f;
 		const float ThumbCx = W * Frac;
-		const FSlateRoundedBoxBrush ThumbRing(FLinearColor::White, ThumbR);
+		static FSlateRoundedBoxBrush ThumbRing(FLinearColor::White, 9.0f);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 2,
 			AllottedGeometry.ToPaintGeometry(FVector2D(ThumbR * 2, ThumbR * 2), FSlateLayoutTransform(FVector2D(ThumbCx - ThumbR, H * 0.5f - ThumbR))),
 			&ThumbRing);
-		const FSlateRoundedBoxBrush ThumbBrush(KgPanelColor::Accent, ThumbR - 1.0f);
+		static FSlateRoundedBoxBrush ThumbBrush(FLinearColor::White, 8.0f);
+		ThumbBrush.TintColor = FSlateColor(KgPanelColor::Accent);
 		FSlateDrawElement::MakeBox(OutDrawElements, LayerId + 3,
 			AllottedGeometry.ToPaintGeometry(FVector2D((ThumbR - 1.0f) * 2, (ThumbR - 1.0f) * 2), FSlateLayoutTransform(FVector2D(ThumbCx - ThumbR + 1.0f, H * 0.5f - ThumbR + 1.0f))),
 			&ThumbBrush);
@@ -391,7 +395,11 @@ private:
 	FReply HandleHeaderClicked()
 	{
 		bExpanded = !bExpanded;
-		if (BodyBox.IsValid()) { BodyBox->SetVisibility(EVisibility::Visible); }
+		if (bExpanded && BodyBox.IsValid())
+		{
+			BodyBox->SetVisibility(EVisibility::Visible);
+			BodyBox->SetRenderOpacity(0.0f);
+		}
 		Invalidate(EInvalidateWidgetReason::Paint);
 		return FReply::Handled();
 	}
