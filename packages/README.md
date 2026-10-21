@@ -6,7 +6,7 @@
 |---|---|
 | `KernelGlow-0.1.0-UE5.7-Win64-Editor.zip` | UE 5.7.3 Win64 编辑器预编译安装包（含源码） |
 
-SHA-256：`fb5249b954b69d2d11542cdef60e1ddf415c30c035e1a6c3fd4edb8c9b8c5db1`
+SHA-256：`134a1f65c907b9aa444bbb81465905ad47b0565bbd77ae02df0b8ee12f5c7b8f`
 
 ## 安装步骤
 
