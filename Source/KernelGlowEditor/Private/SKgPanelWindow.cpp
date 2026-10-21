@@ -6,7 +6,8 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Styling/AppStyle.h"
-#include "DesktopPlatform.h"
+#include "IDesktopPlatform.h"
+#include "DesktopPlatformModule.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -175,7 +176,7 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 				.OnClicked_Lambda([S]()
 				{
 					IDesktopPlatform* Platform = FDesktopPlatformModule::Get();
-					void* ParentHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+					const void* ParentHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
 					if (Platform && ParentHandle)
 					{
 						TArray<FString> OutFiles;
@@ -188,7 +189,7 @@ void SKgPanelWindow::Construct(const FArguments& InArgs)
 							EFileDialogFlags::None,
 							OutFiles) && OutFiles.Num() > 0)
 						{
-							S->KernelTexturePath = FSoftObjectPath(FPackageName::CreateShortName(OutFiles[0]));
+							S->KernelTexturePath = FSoftObjectPath(OutFiles[0]);
 							S->SaveConfig();
 						}
 					}
